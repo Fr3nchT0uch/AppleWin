@@ -605,9 +605,9 @@ bool _6502_GetTargets ( WORD nAddress, int *pTargetPartial_, int *pTargetPartial
 	if (pTargetBytes_)
 		*pTargetBytes_  = 0;	
 
-	BYTE nOpcode   = mem[nAddress];
-	BYTE nTarget8  = mem[(nAddress+1)&0xFFFF];
-	WORD nTarget16 = (mem[(nAddress+2)&0xFFFF]<<8) | nTarget8;
+	BYTE nOpcode   = memread(nAddress);
+	BYTE nTarget8  = memread((nAddress+1)&0xFFFF);
+	WORD nTarget16 = (memread((nAddress+2)&0xFFFF)<<8) | nTarget8;
 
 	int eMode = g_aOpcodes[ nOpcode ].nAddressMode;
 
@@ -631,7 +631,7 @@ bool _6502_GetTargets ( WORD nAddress, int *pTargetPartial_, int *pTargetPartial
 
 					*pTargetPartial_  = _6502_STACK_BEGIN + ((sp+1) & 0xFF);
 					*pTargetPartial2_ = _6502_STACK_BEGIN + ((sp+2) & 0xFF);
-					nTarget16 = mem[*pTargetPartial_] + (mem[*pTargetPartial2_]<<8);
+					nTarget16 = memread(*pTargetPartial_) + (memread(*pTargetPartial2_)<<8);
 
 					if (nOpcode == OPCODE_RTS)
 						++nTarget16;
@@ -643,7 +643,7 @@ bool _6502_GetTargets ( WORD nAddress, int *pTargetPartial_, int *pTargetPartial
 					//*pTargetPartial3_ = _6502_STACK_BEGIN + ((regs.sp-2) & 0xFF);	// TODO: PHP
 					//*pTargetPartial4_ = _6502_BRK_VECTOR + 0;	// TODO
 					//*pTargetPartial5_ = _6502_BRK_VECTOR + 1;	// TODO
-					nTarget16 = *(LPWORD)(mem + _6502_BRK_VECTOR);
+					nTarget16 = memread16(_6502_BRK_VECTOR);
 				}
 				else	// PHn/PLn
 				{
@@ -681,7 +681,7 @@ bool _6502_GetTargets ( WORD nAddress, int *pTargetPartial_, int *pTargetPartial
 			*pTargetPartial_    = nTarget16;
 			*pTargetPartial2_   = nTarget16+1;
 			if (bIncludeNextOpcodeAddress)
-				*pTargetPointer_ = *(LPWORD)(mem + nTarget16);
+				*pTargetPointer_ = memread16(nTarget16);
 			if (pTargetBytes_)
 				*pTargetBytes_ = 2;
 			break;
@@ -705,7 +705,7 @@ bool _6502_GetTargets ( WORD nAddress, int *pTargetPartial_, int *pTargetPartial
 			*pTargetPartial_    = nTarget16;
 			*pTargetPartial2_   = nTarget16+1;
 			if (bIncludeNextOpcodeAddress)
-				*pTargetPointer_ = *(LPWORD)(mem + nTarget16);
+				*pTargetPointer_ = memread16(nTarget16);
 			if (pTargetBytes_)
 				*pTargetBytes_ = 2;
 			break;
@@ -713,21 +713,21 @@ bool _6502_GetTargets ( WORD nAddress, int *pTargetPartial_, int *pTargetPartial
 		case AM_IZX: // Indexed (Zeropage Indirect, X)
 			nTarget8  += regs.x;
 			*pTargetPartial_    = nTarget8;
-			*pTargetPointer_    = *(LPWORD)(mem + nTarget8);
+			*pTargetPointer_    = memread16(nTarget8);
 			if (pTargetBytes_)
 				*pTargetBytes_ = 2;
 			break;
 
 		case AM_NZY: // Indirect (Zeropage) Indexed, Y
 			*pTargetPartial_    = nTarget8;
-			*pTargetPointer_    = ((*(LPWORD)(mem + nTarget8)) + regs.y) & _6502_MEM_END; // Bugfix: 
+			*pTargetPointer_    = ((memread16(nTarget8)) + regs.y) & _6502_MEM_END; // Bugfix: 
 			if (pTargetBytes_)
 				*pTargetBytes_ = 1;
 			break;
 
 		case AM_NZ: // Indirect (Zeropage)
 			*pTargetPartial_    = nTarget8;
-			*pTargetPointer_    = *(LPWORD)(mem + nTarget8);
+			*pTargetPointer_    = memread16(nTarget8);
 			if (pTargetBytes_)
 				*pTargetBytes_ = 2;
 			break;
