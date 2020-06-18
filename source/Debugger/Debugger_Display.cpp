@@ -1580,7 +1580,7 @@ int GetDisassemblyLine ( WORD nBaseAddress, DisasmLine_t & line_ )
 		{
 			nTarget = pData->nTargetAddress;
 		} else {
-			nTarget = *(LPWORD)(mem+nBaseAddress+1);
+			nTarget = memread16(nBaseAddress+1);
 			if (nOpbyte == 2)
 				nTarget &= 0xFF;
 		}
@@ -1705,7 +1705,7 @@ int GetDisassemblyLine ( WORD nBaseAddress, DisasmLine_t & line_ )
 			{
 				bDisasmFormatFlags |= DISASM_FORMAT_TARGET_POINTER;
 
-				nTargetValue = *(mem + nTargetPointer) | (*(mem + ((nTargetPointer + 1) & 0xffff)) << 8);
+				nTargetValue = memread(nTargetPointer) | (memread(((nTargetPointer + 1) & 0xffff)) << 8);
 
 //				if (((iOpmode >= AM_A) && (iOpmode <= AM_NZ)) && (iOpmode != AM_R))
 //					sprintf( sTargetValue_, "%04X", nTargetValue ); // & 0xFFFF
@@ -1820,7 +1820,7 @@ void FormatOpcodeBytes ( WORD nBaseAddress, DisasmLine_t & line_ )
 
 	for( int iByte = 0; iByte < nMaxOpBytes; iByte++ )
 	{
-		BYTE nMem = (unsigned)*(mem+nBaseAddress + iByte);
+		BYTE nMem = (unsigned)memread(nBaseAddress + iByte);
 		sprintf( pDst, "%02X", nMem ); // sBytes+strlen(sBytes)
 		pDst += 2;
 
@@ -1847,8 +1847,8 @@ const	char *pSrc = 0;
 
 	for( int iByte = 0; iByte < line_.nOpbyte; )
 	{
-		BYTE nTarget8  = *(LPBYTE)(mem + nBaseAddress + iByte);
-		WORD nTarget16 = *(LPWORD)(mem + nBaseAddress + iByte);
+		BYTE nTarget8  = memread(nBaseAddress + iByte);
+		WORD nTarget16 = memread16(nBaseAddress + iByte);
 		
 		switch( line_.iNoptype )
 		{
@@ -2754,7 +2754,7 @@ void DrawMemory ( int line, int iMemDump )
 			}
 			else
 			{
-				BYTE nData = (unsigned)*(LPBYTE)(mem+iAddress);
+				BYTE nData = (unsigned)memread(iAddress);
 				sText[0] = 0;
 
 				char c = nData;
@@ -3363,7 +3363,7 @@ void DrawStack ( int line)
 		if (nAddress <= _6502_STACK_END)
 		{
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_OPCODE )); // COLOR_FG_DATA_TEXT
-			sprintf(sText, "  %02X",(unsigned)*(LPBYTE)(mem+nAddress));
+			sprintf(sText, "  %02X",(unsigned)memread(nAddress));
 			PrintTextCursorX( sText, rect );
 		}
 		iStack++;
@@ -3379,7 +3379,7 @@ void DrawTargets ( int line)
 
 	int aTarget[3];
 	_6502_GetTargets( regs.pc, &aTarget[0],&aTarget[1],&aTarget[2], NULL );
-	GetTargets_IgnoreDirectJSRJMP(mem[regs.pc], aTarget[2]);
+	GetTargets_IgnoreDirectJSRJMP(memread(regs.pc), aTarget[2]);
 
 	aTarget[1] = aTarget[2];	// Move down as we only have 2 lines
 
@@ -3404,9 +3404,9 @@ void DrawTargets ( int line)
 		{
 			sprintf(sAddress,"%04X",aTarget[iAddress]);
 			if (iAddress)
-				sprintf(sData,"%02X",*(LPBYTE)(mem+aTarget[iAddress]));
+				sprintf(sData,"%02X",memread(aTarget[iAddress]));
 			else
-				sprintf(sData,"%04X",*(LPWORD)(mem+aTarget[iAddress]));
+				sprintf(sData,"%04X",memread16(aTarget[iAddress]));
 		}
 
 		rect.left   = DISPLAY_TARGETS_COLUMN;
@@ -3488,12 +3488,12 @@ void DrawWatches (int line)
 			BYTE nTarget8 = 0;
 			BYTE nValue8 = 0;
 
-			nTarget8 = (unsigned)*(LPBYTE)(mem+g_aWatches[iWatch].nAddress);
+			nTarget8 = (unsigned)memread(g_aWatches[iWatch].nAddress);
 			sprintf(sText,"%02X", nTarget8 );
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_OPCODE ));
 			PrintTextCursorX( sText, rect2 );
 
-			nTarget8 = (unsigned)*(LPBYTE)(mem+g_aWatches[iWatch].nAddress + 1);
+			nTarget8 = (unsigned)memread(g_aWatches[iWatch].nAddress + 1);
 			sprintf(sText,"%02X", nTarget8 );
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_OPCODE ));
 			PrintTextCursorX( sText, rect2 );
@@ -3502,7 +3502,7 @@ void DrawWatches (int line)
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_OPERATOR ));
 			PrintTextCursorX( sText, rect2 );
 
-			WORD nTarget16 = (unsigned)*(LPWORD)(mem+g_aWatches[iWatch].nAddress);
+			WORD nTarget16 = (unsigned)memread16(g_aWatches[iWatch].nAddress);
 			sprintf( sText,"%04X", nTarget16 );
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_ADDRESS ));
 			PrintTextCursorX( sText, rect2 );
@@ -3535,7 +3535,7 @@ void DrawWatches (int line)
 				else
 					DebuggerSetColorBG( DebuggerGetColor( BG_DATA_2 ));
 
-				BYTE nValue8 = (unsigned)*(LPBYTE)(mem + nTarget16 + iByte );
+				BYTE nValue8 = (unsigned)memread(nTarget16 + iByte );
 				sprintf(sText,"%02X", nValue8 );
 				PrintTextCursorX( sText, rect2 );
 			}
@@ -3643,7 +3643,7 @@ void DrawZeroPagePointers ( int line )
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_OPERATOR ));
 			PrintTextCursorX( ":", rect2 );
 
-			WORD nTarget16 = (WORD)mem[ nZPAddr1 ] | ((WORD)mem[ nZPAddr2 ]<< 8);
+			WORD nTarget16 = (WORD)memread(nZPAddr1) | ((WORD)memread(nZPAddr2 )<< 8);
 			sprintf( sText, "%04X", nTarget16 );
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_ADDRESS ));
 			PrintTextCursorX( sText, rect2 );
@@ -3651,7 +3651,7 @@ void DrawZeroPagePointers ( int line )
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_OPERATOR ));
 			PrintTextCursorX( ":", rect2 );
 
-			BYTE nValue8 = (unsigned)*(LPBYTE)(mem + nTarget16);
+			BYTE nValue8 = (unsigned)memread(nTarget16);
 			sprintf(sText, "%02X", nValue8 );
 			DebuggerSetColorFG( DebuggerGetColor( FG_INFO_OPCODE ));
 			PrintTextCursorX( sText, rect2 );
@@ -3756,7 +3756,7 @@ void DrawSubWindow_Data (Update_t bUpdate)
 		sOpcodes[0] = 0;
 		for ( iByte = 0; iByte < nMaxOpcodes; iByte++ )
 		{
-			BYTE nData = (unsigned)*(LPBYTE)(mem + iAddress + iByte);
+			BYTE nData = (unsigned)memread(iAddress + iByte);
 			sprintf( &sOpcodes[ iByte * 3 ], "%02X ", nData );
 		}
 		sOpcodes[ nMaxOpcodes * 3 ] = 0;
@@ -3807,7 +3807,7 @@ void DrawSubWindow_Data (Update_t bUpdate)
 		iAddress = nAddress;
 		for (iByte = 0; iByte < nMaxOpcodes; iByte++ )
 		{
-			BYTE nImmediate = (unsigned)*(LPBYTE)(mem + iAddress);
+			BYTE nImmediate = (unsigned)memread(iAddress);
 			int iTextBackground = iBackground;
 			if ((iAddress >= _6502_IO_BEGIN) && (iAddress <= _6502_IO_END))
 			{

@@ -766,7 +766,7 @@ void FrameDrawDiskLEDS( HDC passdc )
 //===========================================================================
 void FrameDrawDiskStatus( HDC passdc )
 {
-	if (mem == NULL)
+	if (memmain == NULL)
 		return;
 
 	if (g_nAppMode == MODE_LOGO)
@@ -788,14 +788,14 @@ void FrameDrawDiskStatus( HDC passdc )
 	int nDisk2Track = disk2Card.GetTrack(DRIVE_2);
 
 	// Probe known OS's for Track/Sector
-	int  isProDOS = mem[ 0xBF00 ] == 0x4C;
+	int  isProDOS = memread( 0xBF00 ) == 0x4C;
 	bool isValid  = true;
 
 	// Try DOS3.3 Sector
 	if ( !isProDOS )
 	{
-		int nDOS33track  = mem[ 0xB7EC ];
-		int nDOS33sector = mem[ 0xB7ED ];
+		int nDOS33track  = memread( 0xB7EC );
+		int nDOS33sector = memread( 0xB7ED );
 
 		if ((nDOS33track  >= 0 && nDOS33track  < 40)
 		&&  (nDOS33sector >= 0 && nDOS33sector < 16))

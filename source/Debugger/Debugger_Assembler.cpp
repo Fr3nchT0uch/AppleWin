@@ -1006,10 +1006,10 @@ int AssemblerPokeAddress( const int Opcode, const int nOpmode, const WORD nBaseA
 //	*(mem + nBaseAddress) = (BYTE) nOpcode;
 
 	if (nOpbytes > 1)
-		*(mem + nBaseAddress + 1) = (BYTE)(nTargetOffset >> 0);
+		memwrite2(nBaseAddress + 1) = (BYTE)(nTargetOffset >> 0);
 
 	if (nOpbytes > 2)
-		*(mem + nBaseAddress + 2) = (BYTE)(nTargetOffset >> 8);
+		memwrite2(nBaseAddress + 2) = (BYTE)(nTargetOffset >> 8);
 
 	return nOpbytes;
 }
@@ -1030,7 +1030,7 @@ bool AssemblerPokeOpcodeAddress( const WORD nBaseAddress )
 
 		if (nOpmode == iAddressMode)
 		{
-			*(mem + nBaseAddress) = (BYTE) nOpcode;
+			memwrite2(nBaseAddress) = (BYTE) nOpcode;
 			int nOpbytes = AssemblerPokeAddress( nOpcode, nOpmode, nBaseAddress, nTargetValue );
 
 			if (m_bDelayedTargetsDirty)

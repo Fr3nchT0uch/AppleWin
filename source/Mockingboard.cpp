@@ -1607,7 +1607,7 @@ static BYTE __stdcall MB_Read(WORD PC, WORD nAddr, BYTE bWrite, BYTE nValue, ULO
 	if(!IS_APPLE2 && MemCheckINTCXROM())
 	{
 		_ASSERT(0);	// Card ROM disabled, so IO_Cxxx() returns the internal ROM
-		return mem[nAddr];
+		return memread(nAddr);
 	}
 
 	if(g_SoundcardType == CT_Empty)

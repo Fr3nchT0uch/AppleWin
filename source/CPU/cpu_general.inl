@@ -107,43 +107,50 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 		 addr = memread16(base);		                  \
 		 if ((base & 0xFF) == 0xFF) uExtraCycles=1;		  \
 		 regs.pc += 2;
-#define IABS_NMOS base = memread16(regs.pc);	                          \
-		 if ((base & 0xFF) == 0xFF)				  \
-		       addr = memread16_wrap(base);\
-		 else                                                   \
-		       addr = memread16(base);                        \
-		 regs.pc += 2;
+//#define IABS_NMOS base = memread16(regs.pc);	                          \
+//		 if ((base & 0xFF) == 0xFF)				  \
+//		       addr = memread16_wrap(base);\
+//		 else                                                   \
+//		       addr = memread16(base);                        \
+//		 regs.pc += 2;
+#define IABS_NMOS base = memread16(regs.pc); addr = memread16_wrap(base); regs.pc += 2;
 
 #define IMM	 addr = regs.pc++;
 
-#define INDX	 base = (memread(regs.pc++) + regs.x) & 0xFF;          \
- 		 if (base == 0xFF)                                   \
-		     addr = memread16_wrap(0xFF);          \
-		 else                                                \
-		     addr = memread16(base);
+//#define INDX	 base = (memread(regs.pc++) + regs.x) & 0xFF;          \
+// 		 if (base == 0xFF)                                   \
+//		     addr = memread16_wrap(0xFF);          \
+//		 else                                                \
+//		     addr = memread16(base);
+#define INDX	base = (memread(regs.pc++) + regs.x) & 0xFF; addr = memread16_wrap(base);
 
+// Not optimised for page-cross
+//#define INDY_CONST	 if (memread(regs.pc) == 0xFF)             /*no extra cycle for page-crossing*/ \
+//		     base = memread16_wrap(0xFF);           \
+//		 else                                                \
+//		     base = memread16(memread(regs.pc));           \
+//		 regs.pc++;                                          \
+//		 addr = base+(WORD)regs.y;
+/*no extra cycle for page-crossing*/
+#define INDY_CONST	base = memread16_wrap(memread(regs.pc++)); addr = base+(WORD)regs.y;
 
 // Optimised for page-cross
-#define INDY_OPT	 if (memread(regs.pc) == 0xFF)             /*incurs an extra cycle for page-crossing*/ \
-		     base = memread16_wrap(0xFF);           \
-		 else                                                \
-		     base = memread16(memread(regs.pc));           \
-		 regs.pc++;                                          \
-		 addr = base+(WORD)regs.y;                           \
-		 CHECK_PAGE_CHANGE;
-// Not optimised for page-cross
-#define INDY_CONST	 if (memread(regs.pc) == 0xFF)             /*no extra cycle for page-crossing*/ \
-		     base = memread16_wrap(0xFF);           \
-		 else                                                \
-		     base = memread16(memread(regs.pc));           \
-		 regs.pc++;                                          \
-		 addr = base+(WORD)regs.y;
+//#define INDY_OPT	 if (memread(regs.pc) == 0xFF)             /*incurs an extra cycle for page-crossing*/ \
+//		     base = memread16_wrap(0xFF);           \
+//		 else                                                \
+//		     base = memread16(memread(regs.pc));           \
+//		 regs.pc++;                                          \
+//		 addr = base+(WORD)regs.y;                           \
+//		 CHECK_PAGE_CHANGE;
+ /*incurs an extra cycle for page-crossing*/
+#define INDY_OPT	INDY_CONST;	CHECK_PAGE_CHANGE;
 
-#define IZPG	 base = memread(regs.pc++);                            \
-		 if (base == 0xFF)                                   \
-		     addr = memread16_wrap(0xFF);           \
-		 else                                                \
-		     addr = memread16(base);
+//#define IZPG	 base = memread(regs.pc++);                            \
+//		 if (base == 0xFF)                                   \
+//		     addr = memread16_wrap(0xFF);           \
+//		 else                                                \
+//		     addr = memread16(base);
+#define IZPG	base = memread(regs.pc++); addr = memread16_wrap(base);
 
 #define REL	 addr = (signed char)memread(regs.pc++);
 

@@ -727,7 +727,7 @@ int ArgsCook ( const int nArgs )
 							// pArg->bType |= TYPE_INDIRECT;
 							// pArg->nValue  =  nAddressVal;
 							//nAddressVal = pNext->nValue;
-							pArg->nValue  =  * (WORD*) (mem + nAddressVal);
+							pArg->nValue  =  memread16(nAddressVal);
 							pArg->bType   = TYPE_VALUE | TYPE_ADDRESS | TYPE_NO_REG;
 
 							iArg++; // eat ')'
