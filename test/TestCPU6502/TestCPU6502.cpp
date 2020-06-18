@@ -9,11 +9,33 @@ bool g_bFullSpeed = false;
 enum AppMode_e g_nAppMode = MODE_RUNNING;
 
 // From Memory.cpp
-LPBYTE         memwrite[0x100];		// TODO: Init
+//LPBYTE         memwrite[0x100];		// TODO: Init
 LPBYTE         mem          = NULL;	// TODO: Init
-LPBYTE         memdirty     = NULL;	// TODO: Init
+//LPBYTE         memdirty     = NULL;	// TODO: Init
 iofunction		IORead[256] = {0};	// TODO: Init
 iofunction		IOWrite[256] = {0};	// TODO: Init
+LPBYTE		memshadow_R[0x100];
+LPBYTE		memshadow_W[0x100];
+
+//#define memread(addr)  *(memshadow_R[(WORD)addr >> 8] + ((WORD)addr & 0xFF))
+#define memwrite2(addr) *(memshadow_W[(WORD)addr >> 8] + ((WORD)addr & 0xFF))
+//#define memread16(addr)  ((((WORD)memread(addr + 1))<<8) + memread(addr))
+//#define memread16_wrap(addr)  ((((WORD)memread(addr & 0xFF00))<<8) + memread(addr))
+
+//inline BYTE memread(WORD addr)
+//{
+//	return *(memshadow_R[addr >> 8] + (addr & 0xFF));
+//}
+//
+//inline WORD memread16(WORD addr)
+//{
+//	return (((WORD)memread(addr + 1)) << 8) + memread(addr);
+//}
+//
+//inline WORD memread16_wrap(WORD addr)
+//{
+//	return (((WORD)memread(addr & 0xFF00)) << 8) + memread(addr);
+//}
 
 // From CPU.cpp
 #define	 AF_SIGN       0x80
@@ -88,10 +110,11 @@ void init(void)
 {
 	mem = (LPBYTE)VirtualAlloc(NULL,64*1024,MEM_COMMIT,PAGE_READWRITE);
 
-	for (UINT i=0; i<256; i++)
-		memwrite[i] = mem+i*256;
-
-	memdirty = new BYTE[256];
+	for (UINT i = 0; i < 256; i++)
+	{
+		memshadow_R[i] = mem + i * 256;
+		memshadow_W[i] = mem + i * 256;
+	}
 }
 
 void reset(void)

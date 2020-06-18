@@ -48,7 +48,7 @@ inline uint8_t ReadByte(uint16_t addr, int uExecutedCycles)
 	return  (
 		((addr & 0xF000) == 0xC000)
 		? IORead[(addr >> 4) & 0xFF](regs.pc, addr, 0, 0, uExecutedCycles)
-		: *(mem + addr)
+		: memread(addr)
 		);
 }
 
@@ -56,13 +56,12 @@ inline uint8_t ReadByte(uint16_t addr, int uExecutedCycles)
 #define WRITE(a)                                              \
 	HEATMAP_W(addr);                                          \
 	{                                                         \
-		memdirty[addr >> 8] = 0xFF;                           \
-		LPBYTE page = memwrite[addr >> 8];                    \
-		if (page)                                             \
-			*(page+(addr & 0xFF)) = (BYTE)(a);                \
-		else if ((addr & 0xF000) == 0xC000)                   \
+		if ((addr & 0xF000) == 0xC000)	\
 			IOWrite[(addr>>4) & 0xFF](regs.pc,addr,1,(BYTE)(a),uExecutedCycles); \
-	 }
+		else   \
+			memwrite2(addr) = (BYTE)(a);   \
+	}
+
 
 #include "CPU/cpu_instructions.inl"
 

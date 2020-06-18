@@ -183,8 +183,8 @@ SOFT SWITCH STATUS FLAGS
 //			. memshadow[1] = &memaux[0x0100]
 //
 
-LPBYTE		   memshadow[0x100];
-LPBYTE         memwrite[0x100];
+//LPBYTE		   memshadow[0x100];
+//LPBYTE         memwrite[0x100];
 
 iofunction		IORead[256];
 iofunction		IOWrite[256];

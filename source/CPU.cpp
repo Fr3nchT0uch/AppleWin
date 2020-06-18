@@ -396,7 +396,7 @@ static __forceinline void Fetch(BYTE& iOpcode, ULONG uExecutedCycles)
 
 	iOpcode = ((PC & 0xF000) == 0xC000)
 	    ? IORead[(PC>>4) & 0xFF](PC,PC,0,0,uExecutedCycles)	// Fetch opcode from I/O memory, but params are still from mem[]
-		: *(mem+PC);
+		: memread(PC);
 
 #ifdef USE_SPEECH_API
 	if (PC == COUT && g_Speech.IsEnabled() && !g_bFullSpeed)
@@ -455,7 +455,7 @@ static __forceinline void IRQ(ULONG& uExecutedCycles, BOOL& flagc, BOOL& flagn, 
 		EF_TO_AF
 		PUSH(regs.ps & ~AF_BREAK)
 		regs.ps = regs.ps | AF_INTERRUPT & ~AF_DECIMAL;
-		regs.pc = * (WORD*) (mem+0xFFFE);
+		regs.pc = memread16(0xFFFE);
 		UINT uExtraCycles = 0;	// Needed for CYC(a) macro
 		CYC(7)
 #if defined(_DEBUG) && LOG_IRQ_TAKEN_AND_RTI
@@ -636,17 +636,17 @@ void CpuSetupBenchmark ()
 		int opcode = 0;
 		do
 		{
-			*(mem+addr++) = benchopcode[opcode];
-			*(mem+addr++) = benchopcode[opcode];
+			memwrite2(addr++) = benchopcode[opcode];
+			memwrite2(addr++) = benchopcode[opcode];
 
 			if (opcode >= SHORTOPCODES)
-				*(mem+addr++) = 0;
+				memwrite2(addr++) = 0;
 
 			if ((++opcode >= BENCHOPCODES) || ((addr & 0x0F) >= 0x0B))
 			{
-				*(mem+addr++) = 0x4C;
-				*(mem+addr++) = (opcode >= BENCHOPCODES) ? 0x00 : ((addr >> 4)+1) << 4;
-				*(mem+addr++) = 0x03;
+				memwrite2(addr++) = 0x4C;
+				memwrite2(addr++) = (opcode >= BENCHOPCODES) ? 0x00 : ((addr >> 4)+1) << 4;
+				memwrite2(addr++) = 0x03;
 				while (addr & 0x0F)
 					++addr;
 			}
@@ -715,7 +715,7 @@ void CpuReset()
 {
 	// 7 cycles
 	regs.ps = (regs.ps | AF_INTERRUPT) & ~AF_DECIMAL;
-	regs.pc = * (WORD*) (mem+0xFFFC);
+	regs.pc = memread16(0xFFFC);
 	regs.sp = 0x0100 | ((regs.sp - 3) & 0xFF);
 
 	regs.bJammed = 0;

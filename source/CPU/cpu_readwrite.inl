@@ -36,16 +36,19 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #define READ   (    \
 		((addr & 0xF000) == 0xC000)  \
 		? IORead[(addr >> 4) & 0xFF](regs.pc, addr, 0, 0, uExecutedCycles)  \
-		: *(mem + addr) \
+		: memread(addr) \
 		)
 
 #undef WRITE
 #define WRITE(a) {							    \
-		   memdirty[addr >> 8] = 0xFF;				    \
-		   LPBYTE page = memwrite[addr >> 8];		    \
-		   if (page)						    \
-		     *(page+(addr & 0xFF)) = (BYTE)(a);			    \
-		   else if ((addr & 0xF000) == 0xC000)			    \
-		     IOWrite[(addr>>4) & 0xFF](regs.pc,addr,1,(BYTE)(a),uExecutedCycles); \
+		   if ((addr & 0xF000) == 0xC000)	\
+				IOWrite[(addr>>4) & 0xFF](regs.pc,addr,1,(BYTE)(a),uExecutedCycles); \
+		   else   \
+			  memwrite2(addr) = (BYTE)(a);   \
 		 }
-
+		 //memdirty[addr >> 8] = 0xFF;				    \
+		   //LPBYTE page = memwrite[addr >> 8];		    \
+		   //if (page)						    \
+		   //  *(page+(addr & 0xFF)) = (BYTE)(a);			    \
+		   //else if ((addr & 0xF000) == 0xC000)			    \
+		   //  IOWrite[(addr>>4) & 0xFF](regs.pc,addr,1,(BYTE)(a),uExecutedCycles); \

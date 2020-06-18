@@ -309,7 +309,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 		 EF_TO_AF						    \
 		 PUSH(regs.ps);						    \
 		 regs.ps |= AF_INTERRUPT;				    \
-		 regs.pc = *(LPWORD)(mem+0xFFFE);
+		 regs.pc = memread16(0xFFFE);
 #define BVC	 if (!flagv) BRANCH_TAKEN;
 #define BVS	 if ( flagv) BRANCH_TAKEN;
 #define CLC	 flagc = 0;

@@ -50,8 +50,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 			      | AF_RESERVED | AF_BREAK;
 // CYC(a): This can be optimised, as only certain opcodes will affect uExtraCycles
 #define CYC(a)	 uExecutedCycles += (a)+uExtraCycles;
-#define POP	 (*(mem+((regs.sp >= 0x1FF) ? (regs.sp = 0x100) : ++regs.sp)))
-#define PUSH(a)	 *(mem+regs.sp--) = (a);				    \
+#define POP	 (memread((regs.sp >= 0x1FF) ? (regs.sp = 0x100) : ++regs.sp))
+#define PUSH(a)	 memwrite2(regs.sp--) = (a);				    \
 		 if (regs.sp < 0x100)					    \
 		   regs.sp = 0x1FF;
 
@@ -89,69 +89,70 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 *
 ***/
 
-#define ABS	 addr = *(LPWORD)(mem+regs.pc);	 regs.pc += 2;
-#define IABSX    addr = *(LPWORD)(mem+(*(LPWORD)(mem+regs.pc))+(WORD)regs.x); regs.pc += 2;
+#define ABS	 addr = memread16(regs.pc);	 regs.pc += 2;
+#define IABSX    addr = memread16((memread16(regs.pc))+(WORD)regs.x); regs.pc += 2;
 
 // Optimised for page-cross
-#define ABSX_OPT base = *(LPWORD)(mem+regs.pc); addr = base+(WORD)regs.x; regs.pc += 2; CHECK_PAGE_CHANGE;
+#define ABSX_OPT base = memread16(regs.pc); addr = base+(WORD)regs.x; regs.pc += 2; CHECK_PAGE_CHANGE;
 // Not optimised for page-cross
-#define ABSX_CONST base = *(LPWORD)(mem+regs.pc); addr = base+(WORD)regs.x; regs.pc += 2;
+#define ABSX_CONST base = memread16(regs.pc); addr = base+(WORD)regs.x; regs.pc += 2;
 
 // Optimised for page-cross
-#define ABSY_OPT base = *(LPWORD)(mem+regs.pc); addr = base+(WORD)regs.y; regs.pc += 2; CHECK_PAGE_CHANGE;
+#define ABSY_OPT base = memread16(regs.pc); addr = base+(WORD)regs.y; regs.pc += 2; CHECK_PAGE_CHANGE;
 // Not optimised for page-cross
-#define ABSY_CONST base = *(LPWORD)(mem+regs.pc); addr = base+(WORD)regs.y; regs.pc += 2;
+#define ABSY_CONST base = memread16(regs.pc); addr = base+(WORD)regs.y; regs.pc += 2;
 
 // TODO Optimization Note (just for IABSCMOS): uExtraCycles = ((base & 0xFF) + 1) >> 8;
-#define IABS_CMOS base = *(LPWORD)(mem+regs.pc);	                          \
-		 addr = *(LPWORD)(mem+base);		                  \
+#define IABS_CMOS base = memread16(regs.pc);	                          \
+		 addr = memread16(base);		                  \
 		 if ((base & 0xFF) == 0xFF) uExtraCycles=1;		  \
 		 regs.pc += 2;
-#define IABS_NMOS base = *(LPWORD)(mem+regs.pc);	                          \
+#define IABS_NMOS base = memread16(regs.pc);	                          \
 		 if ((base & 0xFF) == 0xFF)				  \
-		       addr = *(mem+base)+((WORD)*(mem+(base&0xFF00))<<8);\
+		       addr = memread16_wrap(base);\
 		 else                                                   \
-		       addr = *(LPWORD)(mem+base);                        \
+		       addr = memread16(base);                        \
 		 regs.pc += 2;
 
 #define IMM	 addr = regs.pc++;
 
-#define INDX	 base = ((*(mem+regs.pc++))+regs.x) & 0xFF;          \
-		 if (base == 0xFF)                                   \
-		     addr = *(mem+0xFF)+(((WORD)*mem)<<8);           \
+#define INDX	 base = (memread(regs.pc++) + regs.x) & 0xFF;          \
+ 		 if (base == 0xFF)                                   \
+		     addr = memread16_wrap(0xFF);          \
 		 else                                                \
-		     addr = *(LPWORD)(mem+base);
+		     addr = memread16(base);
+
 
 // Optimised for page-cross
-#define INDY_OPT	 if (*(mem+regs.pc) == 0xFF)             /*incurs an extra cycle for page-crossing*/ \
-		     base = *(mem+0xFF)+(((WORD)*mem)<<8);           \
+#define INDY_OPT	 if (memread(regs.pc) == 0xFF)             /*incurs an extra cycle for page-crossing*/ \
+		     base = memread16_wrap(0xFF);           \
 		 else                                                \
-		     base = *(LPWORD)(mem+*(mem+regs.pc));           \
+		     base = memread16(memread(regs.pc));           \
 		 regs.pc++;                                          \
 		 addr = base+(WORD)regs.y;                           \
 		 CHECK_PAGE_CHANGE;
 // Not optimised for page-cross
-#define INDY_CONST	 if (*(mem+regs.pc) == 0xFF)             /*no extra cycle for page-crossing*/ \
-		     base = *(mem+0xFF)+(((WORD)*mem)<<8);           \
+#define INDY_CONST	 if (memread(regs.pc) == 0xFF)             /*no extra cycle for page-crossing*/ \
+		     base = memread16_wrap(0xFF);           \
 		 else                                                \
-		     base = *(LPWORD)(mem+*(mem+regs.pc));           \
+		     base = memread16(memread(regs.pc));           \
 		 regs.pc++;                                          \
 		 addr = base+(WORD)regs.y;
 
-#define IZPG	 base = *(mem+regs.pc++);                            \
+#define IZPG	 base = memread(regs.pc++);                            \
 		 if (base == 0xFF)                                   \
-		     addr = *(mem+0xFF)+(((WORD)*mem)<<8);           \
+		     addr = memread16_wrap(0xFF);           \
 		 else                                                \
-		     addr = *(LPWORD)(mem+base);
+		     addr = memread16(base);
 
-#define REL	 addr = (signed char)*(mem+regs.pc++);
+#define REL	 addr = (signed char)memread(regs.pc++);
 
 // TODO Optimization Note:
 // . Opcodes that generate zero-page addresses can't be accessing $C000..$CFFF
 //   so they could be paired with special READZP/WRITEZP macros (instead of READ/WRITE)
-#define ZPG 	 addr =   *(mem+regs.pc++);
-#define ZPGX	 addr = ((*(mem+regs.pc++))+regs.x) & 0xFF;
-#define ZPGY	 addr = ((*(mem+regs.pc++))+regs.y) & 0xFF;
+#define ZPG 	 addr =   memread(regs.pc++);
+#define ZPGX	 addr = ((memread(regs.pc++))+regs.x) & 0xFF;
+#define ZPGY	 addr = ((memread(regs.pc++))+regs.y) & 0xFF;
 
 // Tidy 3 char addressing modes to keep the opcode table visually aligned, clean, and readable.
 #undef asl

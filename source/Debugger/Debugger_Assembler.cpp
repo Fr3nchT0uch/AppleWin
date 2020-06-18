@@ -479,7 +479,7 @@ int  _6502_GetOpmodeOpbyte ( const int nBaseAddress, int & iOpmode_, int & nOpby
 	}
 #endif
 
-	int iOpcode_ = *(mem + nBaseAddress);
+	int iOpcode_ = memread(nBaseAddress);
 		iOpmode_ = g_aOpcodes[ iOpcode_ ].nAddressMode;
 		nOpbyte_ = g_aOpmodes[ iOpmode_ ].m_nBytes;
 
@@ -513,7 +513,7 @@ int  _6502_GetOpmodeOpbyte ( const int nBaseAddress, int & iOpmode_, int & nOpby
 			case NOP_WORD_2: nOpbyte_ = 4; iOpmode_ = AM_M; break;
 			case NOP_WORD_4: nOpbyte_ = 8; iOpmode_ = AM_M; break;
 			case NOP_ADDRESS:nOpbyte_ = 2; iOpmode_ = AM_A; // BUGFIX: 2.6.2.33 Define Address should be shown as Absolute mode, not Indirect Absolute mode. DA BASIC.FPTR D000:D080 // was showing as "da (END-1)" now shows as "da END-1"
-				pData->nTargetAddress = *(LPWORD)(mem+nBaseAddress);
+				pData->nTargetAddress = memread16(nBaseAddress);
 				break;
 			case NOP_STRING_APPLE:
 				iOpmode_ = AM_DATA;
@@ -571,10 +571,10 @@ bool _6502_GetStackReturnAddress ( WORD & nAddress_ )
 
 	if (nStack <= (_6502_STACK_END - 1))
 	{
-		nAddress_ = (unsigned)*(LPBYTE)(mem + nStack);
-		nStack++;
+		nAddress_ = memread16(nStack); // (unsigned)*(LPBYTE)(mem + nStack);
+		nStack+=2;
 		
-		nAddress_ += ((unsigned)*(LPBYTE)(mem + nStack)) << 8;
+		//nAddress_ += (WORD)memread(nStack) << 8;
 		nAddress_++;
 		return true;
 	}

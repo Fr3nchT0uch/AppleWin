@@ -1163,7 +1163,7 @@ int CheckBreakpointsIO ()
 							if (_CheckBreakpointValue( pBP, nAddress ))
 							{
 								g_uBreakMemoryAddress = (WORD) nAddress;
-								BYTE opcode = mem[regs.pc];
+								BYTE opcode = memread(regs.pc);
 
 								if (pBP->eSource == BP_SRC_MEM_RW)
 								{
@@ -2029,7 +2029,7 @@ Update_t CmdStepOver (int nArgs)
 
 	while (nDebugSteps -- > 0)
 	{
-		int nOpcode = *(mem + regs.pc); // g_nDisasmCurAddress
+		int nOpcode = memread(regs.pc); // g_nDisasmCurAddress
 	//	int eMode = g_aOpcodes[ nOpcode ].addrmode;
 	//	int nByte = g_aOpmodes[eMode]._nBytes;
 	//	if ((eMode ==  AM_A) && 
@@ -2189,13 +2189,14 @@ Update_t CmdJSR (int nArgs)
 	WORD nAddress = g_aArgs[1].nValue & _6502_MEM_END;
 
 	// Mark Stack Page as dirty
-	*(memdirty+(regs.sp >> 8)) = 1;
+	// memrewrite
+	//*(memdirty+(regs.sp >> 8)) = 1;
 
 	// Push PC onto stack
-	*(mem + regs.sp) = ((regs.pc >> 8) & 0xFF);
+	memwrite2(regs.sp) = ((regs.pc >> 8) & 0xFF);
 	regs.sp--;
 
-	*(mem + regs.sp) = ((regs.pc >> 0) - 1) & 0xFF;
+	memwrite2(regs.sp) = ((regs.pc >> 0) - 1) & 0xFF;
 	regs.sp--;
 
 
@@ -2217,7 +2218,7 @@ Update_t CmdNOP (int nArgs)
 
 	while (nOpbytes--)
 	{
-		*(mem+regs.pc + nOpbytes) = 0xEA;
+		memwrite2(regs.pc + nOpbytes) = 0xEA;
 	}
 
 	return UPDATE_ALL;
@@ -4073,14 +4074,15 @@ Update_t CmdMemoryEnterByte (int nArgs)
 		WORD nData = g_aArgs[nArgs].nValue;
 		if( nData > 0xFF)
 		{
-			*(mem + nAddress + nArgs - 2)  = (BYTE)(nData >> 0);
-			*(mem + nAddress + nArgs - 1)  = (BYTE)(nData >> 8);
+			memwrite2(nAddress + nArgs - 2)  = (BYTE)(nData >> 0);
+			memwrite2(nAddress + nArgs - 1)  = (BYTE)(nData >> 8);
 		}
 		else
 		{
-			*(mem + nAddress+nArgs-2)  = (BYTE)nData;
+			memwrite2(nAddress+nArgs-2)  = (BYTE)nData;
 		}
-		*(memdirty+(nAddress >> 8)) = 1;
+		//memrewrite
+		//*(memdirty+(nAddress >> 8)) = 1;
 		nArgs--;
 	}
 
@@ -4103,8 +4105,8 @@ Update_t CmdMemoryEnterWord (int nArgs)
 		WORD nData = g_aArgs[nArgs].nValue;
 
 		// Little Endian
-		*(mem + nAddress + nArgs - 2)  = (BYTE)(nData >> 0);
-		*(mem + nAddress + nArgs - 1)  = (BYTE)(nData >> 8);
+		memwrite2(nAddress + nArgs - 2)  = (BYTE)(nData >> 0);
+		memwrite2(nAddress + nArgs - 1)  = (BYTE)(nData >> 8);
 
 		*(memdirty+(nAddress >> 8)) |= 1;
 		nArgs--;
@@ -4165,7 +4167,7 @@ Update_t CmdMemoryFill (int nArgs)
 			// TODO: Optimize - split into pre_io, and post_io
 			if ((nAddress2 < _6502_IO_BEGIN) || (nAddress2 > _6502_IO_END))
 			{
-				*(mem + nAddressStart) = nValue;
+				memwrite2(nAddressStart) = nValue;
 			}
 			nAddressStart++;
 		}
@@ -4508,7 +4510,7 @@ Update_t CmdMemoryLoad (int nArgs)
 	}
 	const std::string sLoadSaveFilePath = g_sCurrentDir + g_sMemoryLoadSaveFileName; // TODO: g_sDebugDir
 	
-	BYTE * const pMemBankBase = bBankSpecified ? MemGetBankPtr(nBank) : mem;
+	BYTE * const pMemBankBase = bBankSpecified ? MemGetBankPtr(nBank) : memmain;
 	if (!pMemBankBase)
 	{
 		ConsoleBufferPush( TEXT( "Error: Bank out of range." ) );
@@ -4606,7 +4608,7 @@ Update_t CmdMemoryMove (int nArgs)
 			// TODO: Optimize - split into pre_io, and post_io
 			if ((nDst < _6502_IO_BEGIN) || (nDst > _6502_IO_END))
 			{
-				*(mem + nDst) = *(mem + nAddressStart);
+				memwrite2(nDst) = memread(nAddressStart);
 			}
 			nDst++;
 			nAddressStart++;
@@ -4855,7 +4857,7 @@ Update_t CmdMemorySave (int nArgs)
 			}
 			sLoadSaveFilePath += g_sMemoryLoadSaveFileName;
 
-			const BYTE * const pMemBankBase = bBankSpecified ? MemGetBankPtr(nBank) : mem;
+			const BYTE * const pMemBankBase = bBankSpecified ? MemGetBankPtr(nBank) : memmain;
 			if (!pMemBankBase)
 			{
 				ConsoleBufferPush( TEXT( "Error: Bank out of range." ) );
@@ -5763,7 +5765,7 @@ int _SearchMemoryFind(
 				(ms.m_iType == MEM_SEARCH_NIB_HIGH_EXACT) ||
 				(ms.m_iType == MEM_SEARCH_NIB_LOW_EXACT ))
 			{
-				BYTE nTarget = *(mem + nAddress2);
+				BYTE nTarget = memread(nAddress2);
 	
 				if (ms.m_iType == MEM_SEARCH_NIB_LOW_EXACT)
 					nTarget &= 0x0F;
@@ -5803,7 +5805,7 @@ int _SearchMemoryFind(
 						(ms.m_iType == MEM_SEARCH_NIB_HIGH_EXACT) ||
 						(ms.m_iType == MEM_SEARCH_NIB_LOW_EXACT ))
 					{
-						BYTE nTarget = *(mem + nAddress3);
+						BYTE nTarget = memread(nAddress3);
 			
 						if (ms.m_iType == MEM_SEARCH_NIB_LOW_EXACT)
 							nTarget &= 0x0F;
@@ -6712,7 +6714,7 @@ bool ParseAssemblyListing( bool bBytesToMemory, bool bAddSymbols )
 					if (TextIsHexByte( pStart ))
 					{
 						BYTE nByte = TextConvert2CharsToByte( pStart );
-						*(mem + ((WORD)nAddress) + iByte ) = nByte;
+						memwrite2(((WORD)nAddress) + iByte ) = nByte;
 					}
 				}
 				g_nSourceAssembleBytes += iByte;
@@ -8243,7 +8245,7 @@ void OutputTraceLine ()
 	if (g_bTraceFileWithVideoScanner)
 	{
 		uint16_t addr = NTSC_VideoGetScannerAddressForDebugger();
-		BYTE data = mem[addr];
+		BYTE data = memread(addr);
 
 		fprintf( g_hTraceFile,
 			"%04X %04X %04X   %02X %02X %02X %02X %04X %s  %s\n",
@@ -8777,7 +8779,7 @@ void DebugContinueStepping(const bool bCallerWillUpdateDisplay/*=false*/)
 
 			if ( MemIsAddrCodeMemory(regs.pc) )
 			{
-				BYTE nOpcode = *(mem+regs.pc);
+				BYTE nOpcode = memread(regs.pc);
 
 				// Update profiling stats
 				int  nOpmode = g_aOpcodes[ nOpcode ].nAddressMode;

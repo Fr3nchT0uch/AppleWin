@@ -46,12 +46,35 @@ typedef BYTE (__stdcall *iofunction)(WORD nPC, WORD nAddr, BYTE nWriteFlag, BYTE
 
 extern iofunction IORead[256];
 extern iofunction IOWrite[256];
-extern LPBYTE     memwrite[0x100];
-extern LPBYTE     mem;
+//extern LPBYTE     memwrite[0x100];
+//extern LPBYTE     mem;
 extern LPBYTE	  memmain;
 extern LPBYTE     memaux;
 extern LPBYTE     memdirty;
-extern LPBYTE     memshadow[0x100];
+extern LPBYTE     memshadow_R[0x100];
+extern LPBYTE     memshadow_W[0x100];
+extern BYTE       memdummy[0x100];
+
+//#define memread(addr)  *(memshadow_R[addr >> 8] + (addr & 0xFF))
+#define memwrite2(addr) *(memshadow_W[addr >> 8] + (addr & 0xFF))
+// WORD read must NOT assume that the host platform is little endian!
+//#define memread16(addr)  ((((WORD)memread(addr + 1))<<8) + memread(addr))
+//#define memread16_wrap(addr)  ((((WORD)memread(addr & 0xFF00))<<8) + memread(addr))
+
+inline BYTE memread(WORD addr)
+{
+	return *(memshadow_R[addr >> 8] + (addr & 0xFF));
+}
+
+inline WORD memread16(WORD addr)
+{
+	return (((WORD)memread(addr + 1)) << 8) + memread(addr);
+}
+
+inline WORD memread16_wrap(WORD addr)
+{
+	return (((WORD)memread(addr & 0xFF00)) << 8) + memread(addr);
+}
 
 #ifdef RAMWORKS
 const UINT kMaxExMemoryBanks = 127;	// 127 * aux mem(64K) + main mem(64K) = 8MB
@@ -114,3 +137,4 @@ void	SetMemMainLanguageCard(LPBYTE ptr, bool bMemMain=false);
 class LanguageCardUnit* GetLanguageCard(void);
 
 LPBYTE GetCxRomPeripheral(void);
+

@@ -53,8 +53,8 @@ void DrawMemHeatmap(Update_t bUpdate)
 	int linesize = FRAMEBUFFER_W;
 	int index = 0, ramindex = 0;
 	int page = 0, i = 0;
-	LPBYTE _rammain = mem;
-	LPBYTE _ramaux = mem;
+	LPBYTE _rammain = memmain;
+	LPBYTE _ramaux = memaux;
 
 	// Drawing heatmaps
 
