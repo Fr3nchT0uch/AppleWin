@@ -2193,10 +2193,10 @@ Update_t CmdJSR (int nArgs)
 	//*(memdirty+(regs.sp >> 8)) = 1;
 
 	// Push PC onto stack
-	memwrite2(regs.sp) = ((regs.pc >> 8) & 0xFF);
+	memwrite(regs.sp, (regs.pc >> 8) & 0xFF);
 	regs.sp--;
 
-	memwrite2(regs.sp) = ((regs.pc >> 0) - 1) & 0xFF;
+	memwrite(regs.sp, ((regs.pc >> 0) - 1) & 0xFF);
 	regs.sp--;
 
 
@@ -2218,7 +2218,7 @@ Update_t CmdNOP (int nArgs)
 
 	while (nOpbytes--)
 	{
-		memwrite2(regs.pc + nOpbytes) = 0xEA;
+		memwrite(regs.pc + nOpbytes, 0xEA);
 	}
 
 	return UPDATE_ALL;
@@ -4074,12 +4074,12 @@ Update_t CmdMemoryEnterByte (int nArgs)
 		WORD nData = g_aArgs[nArgs].nValue;
 		if( nData > 0xFF)
 		{
-			memwrite2(nAddress + nArgs - 2)  = (BYTE)(nData >> 0);
-			memwrite2(nAddress + nArgs - 1)  = (BYTE)(nData >> 8);
+			memwrite(nAddress + nArgs - 2, (BYTE)(nData >> 0));
+			memwrite(nAddress + nArgs - 1, (BYTE)(nData >> 8));
 		}
 		else
 		{
-			memwrite2(nAddress+nArgs-2)  = (BYTE)nData;
+			memwrite(nAddress+nArgs-2, (BYTE)nData);
 		}
 		//memrewrite
 		//*(memdirty+(nAddress >> 8)) = 1;
@@ -4105,8 +4105,8 @@ Update_t CmdMemoryEnterWord (int nArgs)
 		WORD nData = g_aArgs[nArgs].nValue;
 
 		// Little Endian
-		memwrite2(nAddress + nArgs - 2)  = (BYTE)(nData >> 0);
-		memwrite2(nAddress + nArgs - 1)  = (BYTE)(nData >> 8);
+		memwrite(nAddress + nArgs - 2, (BYTE)(nData >> 0));
+		memwrite(nAddress + nArgs - 1, (BYTE)(nData >> 8));
 
 		*(memdirty+(nAddress >> 8)) |= 1;
 		nArgs--;
@@ -4167,7 +4167,7 @@ Update_t CmdMemoryFill (int nArgs)
 			// TODO: Optimize - split into pre_io, and post_io
 			if ((nAddress2 < _6502_IO_BEGIN) || (nAddress2 > _6502_IO_END))
 			{
-				memwrite2(nAddressStart) = nValue;
+				memwrite(nAddressStart, nValue);
 			}
 			nAddressStart++;
 		}
@@ -4608,7 +4608,7 @@ Update_t CmdMemoryMove (int nArgs)
 			// TODO: Optimize - split into pre_io, and post_io
 			if ((nDst < _6502_IO_BEGIN) || (nDst > _6502_IO_END))
 			{
-				memwrite2(nDst) = memread(nAddressStart);
+				memwrite(nDst, memread(nAddressStart));
 			}
 			nDst++;
 			nAddressStart++;
@@ -6714,7 +6714,7 @@ bool ParseAssemblyListing( bool bBytesToMemory, bool bAddSymbols )
 					if (TextIsHexByte( pStart ))
 					{
 						BYTE nByte = TextConvert2CharsToByte( pStart );
-						memwrite2(((WORD)nAddress) + iByte ) = nByte;
+						memwrite(((WORD)nAddress) + iByte , nByte);
 					}
 				}
 				g_nSourceAssembleBytes += iByte;

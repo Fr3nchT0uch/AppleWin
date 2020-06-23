@@ -44,7 +44,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 		   if ((addr & 0xF000) == 0xC000)	\
 				IOWrite[(addr>>4) & 0xFF](regs.pc,addr,1,(BYTE)(a),uExecutedCycles); \
 		   else   \
-			  memwrite2(addr) = (BYTE)(a);   \
+			  memwrite(addr, (BYTE)a);   \
 		 }
 		 //memdirty[addr >> 8] = 0xFF;				    \
 		   //LPBYTE page = memwrite[addr >> 8];		    \

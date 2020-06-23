@@ -636,17 +636,17 @@ void CpuSetupBenchmark ()
 		int opcode = 0;
 		do
 		{
-			memwrite2(addr++) = benchopcode[opcode];
-			memwrite2(addr++) = benchopcode[opcode];
+			memwrite(addr++, benchopcode[opcode]);
+			memwrite(addr++, benchopcode[opcode]);
 
 			if (opcode >= SHORTOPCODES)
-				memwrite2(addr++) = 0;
+				memwrite(addr++, 0);
 
 			if ((++opcode >= BENCHOPCODES) || ((addr & 0x0F) >= 0x0B))
 			{
-				memwrite2(addr++) = 0x4C;
-				memwrite2(addr++) = (opcode >= BENCHOPCODES) ? 0x00 : ((addr >> 4)+1) << 4;
-				memwrite2(addr++) = 0x03;
+				memwrite(addr++, 0x4C);
+				memwrite(addr++, (opcode >= BENCHOPCODES) ? 0x00 : ((addr >> 4)+1) << 4);
+				memwrite(addr++, 0x03);
 				while (addr & 0x0F)
 					++addr;
 			}

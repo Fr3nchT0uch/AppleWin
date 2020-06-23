@@ -190,6 +190,10 @@ iofunction		IORead[256];
 iofunction		IOWrite[256];
 static LPVOID	SlotParameters[NUM_SLOTS];
 
+LPBYTE     memshadow_R[0x100];
+LPBYTE     memshadow_W[0x100];
+BYTE       memdummy[0x100];
+
 LPBYTE         mem          = NULL;
 
 //
@@ -890,7 +894,8 @@ static BYTE __stdcall IO_Cxxx(WORD programcounter, WORD address, BYTE write, BYT
 	if ((g_eExpansionRomType == eExpRomNull) && (address >= FIRMWARE_EXPANSION_BEGIN))
 		return IO_Null(programcounter, address, write, value, nExecutedCycles);
 
-	return mem[address];
+//	return mem[address];
+	return memread(address);
 }
 
 //===========================================================================
@@ -1376,13 +1381,14 @@ LPBYTE MemGetAuxPtr(const WORD offset)
 
 LPBYTE MemGetMainPtr(const WORD offset)
 {
-	LPBYTE lpMem = MemGetPtrBANK1(offset, memmain);
-	if (lpMem)
-		return lpMem;
+	return memmain + offset;
+	//LPBYTE lpMem = MemGetPtrBANK1(offset, memmain);
+	//if (lpMem)
+	//	return lpMem;
 
-	return (memshadow[(offset >> 8)] == (memmain+(offset & 0xFF00)))
-			? mem+offset				// Return 'mem' copy if possible, as page could be dirty
-			: memmain+offset;
+	//return (memshadow[(offset >> 8)] == (memmain+(offset & 0xFF00)))
+	//		? mem+offset				// Return 'mem' copy if possible, as page could be dirty
+	//		: memmain+offset;
 }
 
 //===========================================================================
@@ -1909,8 +1915,8 @@ inline DWORD getRandomTime()
 void MemReset()
 {
 	// INITIALIZE THE PAGING TABLES
-	ZeroMemory(memshadow,256*sizeof(LPBYTE));
-	ZeroMemory(memwrite ,256*sizeof(LPBYTE));
+	ZeroMemory(memshadow_R,256*sizeof(LPBYTE));
+	ZeroMemory(memshadow_W,256*sizeof(LPBYTE));
 
 	// INITIALIZE THE RAM IMAGES
 	ZeroMemory(memaux ,0x10000);

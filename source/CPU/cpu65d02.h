@@ -59,7 +59,7 @@ inline uint8_t ReadByte(uint16_t addr, int uExecutedCycles)
 		if ((addr & 0xF000) == 0xC000)	\
 			IOWrite[(addr>>4) & 0xFF](regs.pc,addr,1,(BYTE)(a),uExecutedCycles); \
 		else   \
-			memwrite2(addr) = (BYTE)(a);   \
+			memwrite(addr, (BYTE)a);   \
 	}
 
 
@@ -117,7 +117,7 @@ static DWORD Cpu65D02(DWORD uTotalCycles, const bool bVideoUpdate, bool is65C02)
 
 // Version 2   opcode: $ AM         Instruction // $=DebugBreak AM=AddressingMode
 //!         !          ! !          !      ! // Tab-Stops
-		if (!is65C02) {
+ 		if (!is65C02) {
 			switch (iOpcode)
 			{
 			case 0x00:              BRK  CYC(7)  break;

@@ -51,7 +51,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 // CYC(a): This can be optimised, as only certain opcodes will affect uExtraCycles
 #define CYC(a)	 uExecutedCycles += (a)+uExtraCycles;
 #define POP	 (memread((regs.sp >= 0x1FF) ? (regs.sp = 0x100) : ++regs.sp))
-#define PUSH(a)	 memwrite2(regs.sp--) = (a);				    \
+#define PUSH(a)	 memwrite(regs.sp--,a);				    \
 		 if (regs.sp < 0x100)					    \
 		   regs.sp = 0x1FF;
 
