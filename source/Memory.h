@@ -73,7 +73,7 @@ inline WORD memread16(WORD addr)
 
 inline WORD memread16_wrap(WORD addr)
 {
-	return (((WORD)memread(addr & 0xFF00)) << 8) + memread(addr);
+	return ((WORD)memread((addr & 0xFF00) | ((addr+1) & 0xFF)) << 8) + memread(addr);
 }
 
 #ifdef RAMWORKS

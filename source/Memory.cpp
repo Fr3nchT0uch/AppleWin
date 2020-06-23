@@ -1085,33 +1085,46 @@ static void UpdatePaging(BOOL initialize)
 	modechanging = 0;
 
 	// SAVE THE CURRENT PAGING SHADOW TABLE
-	LPBYTE oldshadow[256];
-	if (!initialize)
-		CopyMemory(oldshadow,memshadow,256*sizeof(LPBYTE));
+	//LPBYTE oldshadow[256];
+	//if (!initialize)
+	//	CopyMemory(oldshadow,memshadow,256*sizeof(LPBYTE));
 
 	// UPDATE THE PAGING TABLES BASED ON THE NEW PAGING SWITCH VALUES
 	UINT loop;
 	if (initialize)
 	{
-		for (loop = 0x00; loop < 0xC0; loop++)
-			memwrite[loop] = mem+(loop << 8);
+		for (loop = 0x00; loop < 0x100; loop++)
+		{
+			memshadow_W[loop] = memmain + (loop << 8);
+			memshadow_R[loop] = memmain + (loop << 8);
+			//			memwrite[loop] = mem+(loop << 8);
+		}
 
 		for (loop = 0xC0; loop < 0xD0; loop++)
-			memwrite[loop] = NULL;
+		{
+			memshadow_W[loop] = NULL;
+			memshadow_R[loop] = NULL;
+			//			memwrite[loop] = NULL;
+		}
 	}
 
 	for (loop = 0x00; loop < 0x02; loop++)
-		memshadow[loop] = SW_ALTZP ? memaux+(loop << 8) : memmain+(loop << 8);
+//		memshadow[loop] = SW_ALTZP ? memaux+(loop << 8) : memmain+(loop << 8);
+		memshadow_R[loop] = SW_ALTZP ? memaux + (loop << 8) : memmain + (loop << 8);
 
 	for (loop = 0x02; loop < 0xC0; loop++)
 	{
-		memshadow[loop] = SW_AUXREAD ? memaux+(loop << 8)
-			: memmain+(loop << 8);
+		//memshadow[loop] = SW_AUXREAD ? memaux+(loop << 8)
+		//	: memmain+(loop << 8);
+		memshadow_R[loop] = SW_AUXREAD ? memaux + (loop << 8)
+			: memmain + (loop << 8);
 
-		memwrite[loop]  = ((SW_AUXREAD != 0) == (SW_AUXWRITE != 0))
-			? mem+(loop << 8)
-			: SW_AUXWRITE	? memaux+(loop << 8)
-							: memmain+(loop << 8);
+		//memwrite[loop]  = ((SW_AUXREAD != 0) == (SW_AUXWRITE != 0))
+		//	? mem+(loop << 8)
+		//	: SW_AUXWRITE	? memaux+(loop << 8)
+		//					: memmain+(loop << 8);
+		memshadow_W[loop] = SW_AUXWRITE ? memaux + (loop << 8)
+			: memmain + (loop << 8);
 	}
 
 	for (loop = 0xC0; loop < 0xC8; loop++)
@@ -1119,10 +1132,10 @@ static void UpdatePaging(BOOL initialize)
 		memdirty[loop] = 0;	// mem(cache) can't be dirty for ROM (but STA $Csnn will set the dirty flag)
 		const UINT uSlotOffset = (loop & 0x0f) * 0x100;
 		if (loop == 0xC3)
-			memshadow[loop] = (SW_SLOTC3ROM && !SW_INTCXROM)	? pCxRomPeripheral+uSlotOffset	// C300..C3FF - Slot 3 ROM (all 0x00's)
+			memshadow_R[loop] = (SW_SLOTC3ROM && !SW_INTCXROM)	? pCxRomPeripheral+uSlotOffset	// C300..C3FF - Slot 3 ROM (all 0x00's)
 																: pCxRomInternal+uSlotOffset;	// C300..C3FF - Internal ROM
 		else
-			memshadow[loop] = !SW_INTCXROM	? pCxRomPeripheral+uSlotOffset						// C000..C7FF - SSC/Disk][/etc
+			memshadow_R[loop] = !SW_INTCXROM	? pCxRomPeripheral+uSlotOffset						// C000..C7FF - SSC/Disk][/etc
 											: pCxRomInternal+uSlotOffset;						// C000..C7FF - Internal ROM
 	}
 
@@ -1130,51 +1143,57 @@ static void UpdatePaging(BOOL initialize)
 	{
 		memdirty[loop] = 0;	// mem(cache) can't be dirty for ROM (but STA $Cnnn will set the dirty flag)
 		const UINT uRomOffset = (loop & 0x0f) * 0x100;
-		memshadow[loop] = (!SW_INTCXROM && !INTC8ROM)	? pCxRomPeripheral+uRomOffset			// C800..CFFF - Peripheral ROM (GH#486)
+		memshadow_R[loop] = (!SW_INTCXROM && !INTC8ROM)	? pCxRomPeripheral+uRomOffset			// C800..CFFF - Peripheral ROM (GH#486)
 														: pCxRomInternal+uRomOffset;			// C800..CFFF - Internal ROM
 	}
 
 	for (loop = 0xD0; loop < 0xE0; loop++)
 	{
 		int bankoffset = (SW_BANK2 ? 0 : 0x1000);
-		memshadow[loop] = SW_HIGHRAM ? SW_ALTZP	? memaux+(loop << 8)-bankoffset
+		memshadow_R[loop] = SW_HIGHRAM ? SW_ALTZP	? memaux+(loop << 8)-bankoffset
 												: g_pMemMainLanguageCard+((loop-0xC0)<<8)-bankoffset
 									 : memrom+((loop-0xD0) * 0x100);
 
-		memwrite[loop]  = SW_WRITERAM	? SW_HIGHRAM	? mem+(loop << 8)
-														: SW_ALTZP	? memaux+(loop << 8)-bankoffset
-																	: g_pMemMainLanguageCard+((loop-0xC0)<<8)-bankoffset
-										: NULL;
+		//memwrite[loop]  = SW_WRITERAM	? SW_HIGHRAM	? mem+(loop << 8)
+		//												: SW_ALTZP	? memaux+(loop << 8)-bankoffset
+		//															: g_pMemMainLanguageCard+((loop-0xC0)<<8)-bankoffset
+		//								: NULL;
+		memshadow_W[loop] = SW_WRITERAM ? SW_ALTZP ? memaux + (loop << 8) - bankoffset
+																: g_pMemMainLanguageCard + ((loop - 0xC0) << 8) - bankoffset
+									    : memdummy;
 	}
 
 	for (loop = 0xE0; loop < 0x100; loop++)
 	{
-		memshadow[loop] = SW_HIGHRAM	? SW_ALTZP	? memaux+(loop << 8)
+		memshadow_R[loop] = SW_HIGHRAM	? SW_ALTZP	? memaux+(loop << 8)
 													: g_pMemMainLanguageCard+((loop-0xC0)<<8)
 										: memrom+((loop-0xD0) * 0x100);
 
-		memwrite[loop]  = SW_WRITERAM	? SW_HIGHRAM	? mem+(loop << 8)
-														: SW_ALTZP	? memaux+(loop << 8)
-																	: g_pMemMainLanguageCard+((loop-0xC0)<<8)
-										: NULL;
+		memshadow_W[loop] = SW_WRITERAM ? SW_ALTZP ? memaux + (loop << 8)
+													: g_pMemMainLanguageCard + ((loop - 0xC0) << 8)
+										: memdummy;
 	}
 
 	if (SW_80STORE)
 	{
 		for (loop = 0x04; loop < 0x08; loop++)
 		{
-			memshadow[loop] = SW_PAGE2	? memaux+(loop << 8)
-										: memmain+(loop << 8);
-			memwrite[loop]  = mem+(loop << 8);
+			memshadow_R[loop] = SW_PAGE2	? memaux+(loop << 8)
+										    : memmain+(loop << 8);
+			memshadow_W[loop] = SW_PAGE2 ? memaux + (loop << 8)
+										 : memmain + (loop << 8);
+			//memwrite[loop]  = mem+(loop << 8);
 		}
 
 		if (SW_HIRES)
 		{
 			for (loop = 0x20; loop < 0x40; loop++)
 			{
-				memshadow[loop] = SW_PAGE2	? memaux+(loop << 8)
+				memshadow_R[loop] = SW_PAGE2	? memaux+(loop << 8)
 											: memmain+(loop << 8);
-				memwrite[loop]  = mem+(loop << 8);
+				memshadow_W[loop] = SW_PAGE2 ? memaux + (loop << 8)
+											: memmain + (loop << 8);
+				//memwrite[loop]  = mem+(loop << 8);
 			}
 		}
 	}
@@ -1187,20 +1206,20 @@ static void UpdatePaging(BOOL initialize)
 	// . Page0 (ZP)    : memdirty[0] is set when the 6502 CPU does a ZP-write, but perhaps older versions didn't set this flag (eg. the asm version?).
 	// . Page1 (stack) : memdirty[1] is NOT set when the 6502 CPU writes to this page with JSR, etc.
 
-	for (loop = 0x00; loop < 0x100; loop++)
-	{
-		if (initialize || (oldshadow[loop] != memshadow[loop]))
-		{
-			if (!initialize &&
-				((*(memdirty+loop) & 1) || (loop <= 1)))
-			{
-				*(memdirty+loop) &= ~1;
-				CopyMemory(oldshadow[loop],mem+(loop << 8),256);
-			}
+	//for (loop = 0x00; loop < 0x100; loop++)
+	//{
+	//	if (initialize || (oldshadow[loop] != memshadow[loop]))
+	//	{
+	//		if (!initialize &&
+	//			((*(memdirty+loop) & 1) || (loop <= 1)))
+	//		{
+	//			*(memdirty+loop) &= ~1;
+	//			CopyMemory(oldshadow[loop],mem+(loop << 8),256);
+	//		}
 
-			CopyMemory(mem+(loop << 8),memshadow[loop],256);
-		}
-	}
+	//		CopyMemory(mem+(loop << 8),memshadow[loop],256);
+	//	}
+	//}
 }
 
 //
@@ -1246,8 +1265,10 @@ void MemDestroy()
 
 	mem      = NULL;
 
-	ZeroMemory(memwrite, sizeof(memwrite));
-	ZeroMemory(memshadow,sizeof(memshadow));
+	//ZeroMemory(memwrite, sizeof(memwrite));
+	//ZeroMemory(memshadow,sizeof(memshadow));
+	ZeroMemory(memshadow_R,sizeof(memshadow_R));
+	ZeroMemory(memshadow_W,sizeof(memshadow_W));
 }
 
 //===========================================================================
@@ -1266,13 +1287,13 @@ bool MemCheckINTCXROM()
 
 static void BackMainImage(void)
 {
-	for (UINT loop = 0; loop < 256; loop++)
-	{
-		if (memshadow[loop] && ((*(memdirty+loop) & 1) || (loop <= 1)))
-			CopyMemory(memshadow[loop], mem+(loop << 8), 256);
+	//for (UINT loop = 0; loop < 256; loop++)
+	//{
+	//	if (memshadow[loop] && ((*(memdirty+loop) & 1) || (loop <= 1)))
+	//		CopyMemory(memshadow[loop], mem+(loop << 8), 256);
 
-		*(memdirty+loop) &= ~1;
-	}
+	//	*(memdirty+loop) &= ~1;
+	//}
 }
 
 //===========================================================================
@@ -1284,8 +1305,9 @@ static LPBYTE MemGetPtrBANK1(const WORD offset, const LPBYTE pMemBase)
 
 	// NB. This works for memaux when set to any RWpages[] value, ie. RamWork III "just works"
 	const BYTE bank1page = (offset >> 8) & 0xF;
-	return (memshadow[0xD0+bank1page] == pMemBase+(0xC0+bank1page)*256)
-		? mem+offset+0x1000				// Return ptr to $Dxxx address - 'mem' has (a potentially dirty) 4K RAM BANK1 mapped in at $D000
+	return (memshadow_R[0xD0 + bank1page] == pMemBase + (0xC0 + bank1page) * 256)
+		//	? mem+offset+0x1000				// Return ptr to $Dxxx address - 'mem' has (a potentially dirty) 4K RAM BANK1 mapped in at $D000
+		? memshadow_R[(offset + 0x10) >> 8] + (offset & 0xFF)
 		: pMemBase+offset;				// Else return ptr to $Cxxx address
 }
 
@@ -1297,9 +1319,10 @@ LPBYTE MemGetAuxPtr(const WORD offset)
 	if (lpMem)
 		return lpMem;
 
-	lpMem = (memshadow[(offset >> 8)] == (memaux+(offset & 0xFF00)))
-			? mem+offset				// Return 'mem' copy if possible, as page could be dirty
-			: memaux+offset;
+	//lpMem = (memshadow[(offset >> 8)] == (memaux+(offset & 0xFF00)))
+	//		? mem+offset				// Return 'mem' copy if possible, as page could be dirty
+	//		: memaux+offset;
+	lpMem = memshadow_R[(offset >> 8)] + (offset & 0xFF);
 
 #ifdef RAMWORKS
 	// Video scanner (for 14M video modes) always fetches from 1st 64K aux bank (UTAIIe ref?)
@@ -1310,9 +1333,11 @@ LPBYTE MemGetAuxPtr(const WORD offset)
 			)
 		)
 	{
-		lpMem = (memshadow[(offset >> 8)] == (RWpages[0]+(offset & 0xFF00)))
-			? mem+offset
-			: RWpages[0]+offset;
+		//lpMem = (memshadow[(offset >> 8)] == (RWpages[0]+(offset & 0xFF00)))
+		//	? mem+offset
+		//	: RWpages[0]+offset;
+		if ((memshadow_R[(offset >> 8)] != (RWpages[0] + (offset & 0xFF00))))
+			lpMem = RWpages[0] + offset;
 	}
 #endif
 
