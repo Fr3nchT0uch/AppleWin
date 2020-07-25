@@ -629,7 +629,63 @@ void NTSC::updatePixels( uint16_t bits )
         g_nLastColumnPixelNTSC = bits & 1;
 	}
 }
+//===========================================================================
 
+// NB. g_nLastColumnPixelNTSC = bits.b13 will be superseded by these parent funcs which use bits.b14:
+// . updateScreenDoubleHires80(), updateScreenDoubleLores80(), updateScreenText80()
+void NTSC::updatePixelsText(uint16_t bits)
+{
+	if (!GetColorBurst())
+	{
+		/* #1 of 7 */
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		/* #2 of 7 */
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		/* #3 of 7 */
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		/* #4 of 7 */
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		/* #5 of 7 */
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		/* #6 of 7 */
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		/* #7 of 7 */
+		FuncUpdateBnWPixel(bits & 1); bits >>= 1;
+		FuncUpdateBnWPixel(bits & 1);
+		g_nLastColumnPixelNTSC = bits & 1;
+	}
+	else
+	{
+		/* #1 of 7 */                             // abcd efgh ijkl mnop
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0abc defg hijk lmno
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 00ab cdef ghi jklmn
+		/* #2 of 7 */
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 000a bcde fghi jklm
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 abcd efgh ijkl
+		/* #3 of 7 */
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 0abc defg hijk
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 00ab cdef ghij
+		/* #4 of 7 */
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 000a bcde fghi
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 0000 abcd efgh
+		/* #5 of 7 */
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 0000 0abc defg
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 0000 00ab cdef
+		/* #6 of 7 */
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 0000 000a bcde
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 0000 0000 abcd
+		/* #7 of 7 */
+		FuncUpdateHuePixelText(bits & 1); bits >>= 1; // 0000 0000 0000 0abc
+		FuncUpdateHuePixelText(bits & 1);
+		g_nLastColumnPixelNTSC = bits & 1;
+	}
+}
 //===========================================================================
 
 void NTSC::updateVideoScannerHorzEOLSimple()
@@ -671,6 +727,7 @@ void NTSC::updateVideoScannerHorzEOL()
 				FuncUpdateHuePixel(g_nLastColumnPixelNTSC);
 				FuncUpdateHuePixel(0);
 				FuncUpdateHuePixel(0);
+				FuncUpdateHuePixelText(0);
 			}
 		}
 
@@ -1030,24 +1087,28 @@ void NTSC::updateMonochromeTables( uint16_t r, uint16_t g, uint16_t b )
 void NTSC::updatePixelBnWMonitorSingleScanline (uint16_t compositeSignal)
 {
 	updateFramebufferMonitorSingleScanline(compositeSignal, g_aBnWMonitorCustom);
+	updateColorPhase();
 }
 
 //===========================================================================
 void NTSC::updatePixelBnWMonitorDoubleScanline (uint16_t compositeSignal)
 {
 	updateFramebufferMonitorDoubleScanline(compositeSignal, g_aBnWMonitorCustom);
+	updateColorPhase();
 }
 
 //===========================================================================
 void NTSC::updatePixelBnWColorTVSingleScanline (uint16_t compositeSignal)
 {
 	updateFramebufferTVSingleScanline(compositeSignal, g_aBnWColorTVCustom);
+	updateColorPhase();
 }
 
 //===========================================================================
 void NTSC::updatePixelBnWColorTVDoubleScanline (uint16_t compositeSignal)
 {
 	updateFramebufferTVDoubleScanline(compositeSignal, g_aBnWColorTVCustom);
+	updateColorPhase();
 }
 
 //===========================================================================
@@ -1487,7 +1548,7 @@ void NTSC::updateScreenText40 (long cycles6502)
 				if (0 == g_nVideoCharSet && 0x40 == (m & 0xC0)) // Flash only if mousetext not active
 					bits ^= g_nTextFlashMask;
 
-				updatePixels( bits );
+				updatePixelsText( bits );
 
 			}
 		}
@@ -1529,7 +1590,7 @@ void NTSC::updateScreenText80 (long cycles6502)
 				uint16_t bits = (main << 7) | (aux & 0x7f);
 				if (Video::GetVideoType() != VT_COLOR_MONITOR_RGB)			// No extra 14M bit needed for VT_COLOR_MONITOR_RGB
 					bits = (bits << 1) | g_nLastColumnPixelNTSC;	// GH#555: Align TEXT80 chars with DHGR
-				updatePixels( bits );
+				updatePixelsText( bits );
 				g_nLastColumnPixelNTSC = (bits >> 14) & 1;
 			}
 		}
@@ -1710,9 +1771,10 @@ void NTSC::NTSC_SetVideoMode( uint32_t uVideoModeFlags, bool bDelay/*=false*/ )
 
 void NTSC::NTSC_SetVideoStyle() // (int v, int s)
 {
-    int half = Video::IsVideoStyle(VS_HALF_SCANLINES);
 	uint8_t r, g, b;
-
+	int half = Video::IsVideoStyle(VS_HALF_SCANLINES);
+	int refresh = Video::GetVideoRefreshRate();
+	
 	switch (Video::GetVideoType())
 	{
 		case VT_COLOR_TV:
@@ -1724,10 +1786,26 @@ void NTSC::NTSC_SetVideoStyle() // (int v, int s)
 			{
 				g_pFuncUpdateBnWPixel = &NTSC::updatePixelBnWColorTVSingleScanline;
 				g_pFuncUpdateHuePixel = &NTSC::updatePixelHueColorTVSingleScanline;
+				if (refresh == VR_50HZ)
+				{
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelBnWColorTVSingleScanline;
+				}
+				else
+				{
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelHueColorTVSingleScanline;
+				}
 			}
 			else {
 				g_pFuncUpdateBnWPixel = &NTSC::updatePixelBnWColorTVDoubleScanline;
 				g_pFuncUpdateHuePixel = &NTSC::updatePixelHueColorTVDoubleScanline;
+				if (refresh == VR_50HZ)
+				{
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelBnWColorTVDoubleScanline;
+				}
+				else
+				{
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelHueColorTVDoubleScanline;
+				}
 			}
 			break;
 
@@ -1741,10 +1819,24 @@ void NTSC::NTSC_SetVideoStyle() // (int v, int s)
 			{
 				g_pFuncUpdateBnWPixel = &NTSC::updatePixelBnWMonitorSingleScanline;
 				g_pFuncUpdateHuePixel = &NTSC::updatePixelHueMonitorSingleScanline;
+				if (refresh == VR_50HZ)
+				{
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelBnWMonitorSingleScanline;
+				}
+				else {
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelHueMonitorSingleScanline;
+				}
 			}
 			else {
 				g_pFuncUpdateBnWPixel = &NTSC::updatePixelBnWMonitorDoubleScanline;
 				g_pFuncUpdateHuePixel = &NTSC::updatePixelHueMonitorDoubleScanline;
+				if (refresh == VR_50HZ)
+				{
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelBnWMonitorDoubleScanline;
+				}
+				else {
+					g_pFuncUpdateHuePixelText = &NTSC::updatePixelHueMonitorDoubleScanline;
+				}
 			}
 			break;
 
@@ -1795,11 +1887,11 @@ _mono:
 			updateMonochromeTables( r, g, b ); // Custom Monochrome color
 			if (half)
 			{
-				g_pFuncUpdateBnWPixel = g_pFuncUpdateHuePixel = &NTSC::updatePixelBnWMonitorSingleScanline;
+				g_pFuncUpdateBnWPixel = g_pFuncUpdateHuePixel = g_pFuncUpdateHuePixelText = &NTSC::updatePixelBnWMonitorSingleScanline;
 			}
 			else
 			{
-				g_pFuncUpdateBnWPixel = g_pFuncUpdateHuePixel = &NTSC::updatePixelBnWMonitorDoubleScanline;
+				g_pFuncUpdateBnWPixel = g_pFuncUpdateHuePixel = g_pFuncUpdateHuePixelText = &NTSC::updatePixelBnWMonitorDoubleScanline;
 			}
 			break;
 		}

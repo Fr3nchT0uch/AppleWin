@@ -112,11 +112,13 @@ private:
 #define FuncModeSwitchDelayed      (this->*g_pFuncModeSwitchDelayed)
 
 	typedef void (NTSC::*UpdatePixelFunc_t)(uint16_t);
-	UpdatePixelFunc_t g_pFuncUpdateBnWPixel = 0; //updatePixelBnWMonitorSingleScanline;
-	UpdatePixelFunc_t g_pFuncUpdateHuePixel = 0; //updatePixelHueMonitorSingleScanline;
+	UpdatePixelFunc_t g_pFuncUpdateBnWPixel = 0;		//updatePixelBnWMonitorSingleScanline;
+	UpdatePixelFunc_t g_pFuncUpdateHuePixel = 0;		//updatePixelHueMonitorSingleScanline;
+	UpdatePixelFunc_t g_pFuncUpdateHuePixelText = 0;	//updatePixelHueMonitorSingleScanline;
 
 #define FuncUpdateBnWPixel (this->*g_pFuncUpdateBnWPixel)
 #define FuncUpdateHuePixel (this->*g_pFuncUpdateHuePixel)
+#define FuncUpdateHuePixelText (this->*g_pFuncUpdateHuePixelText)
 
 
 	uint8_t  g_nTextFlashCounter = 0;
@@ -194,6 +196,7 @@ private:
 	void      updateFramebufferMonitorSingleScanline(uint16_t signal, bgra_t* pTable);
 	void      updateFramebufferMonitorDoubleScanline(uint16_t signal, bgra_t* pTable);
 	void      updatePixels(uint16_t bits);
+	void      updatePixelsText(uint16_t bits);
 	void      updateVideoScannerHorzEOL();
 	void      updateVideoScannerAddress();
 	uint16_t  getVideoScannerAddressTXT();

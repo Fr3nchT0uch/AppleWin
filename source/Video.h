@@ -258,8 +258,8 @@ public:
 	static bool IsVideoStyle(VideoStyle_e mask);
 	static COLORREF Video::GetMonochromeRGB(void);
 	static void Video::SetMonochromeRGB(COLORREF newMonochromeRGB);
+	static VideoRefreshRate_e GetVideoRefreshRate(void);
 
-	VideoRefreshRate_e GetVideoRefreshRate(void);
 	void SetVideoRefreshRate(VideoRefreshRate_e rate);
 
 	void VideoInitAppleType();
