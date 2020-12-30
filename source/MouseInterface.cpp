@@ -46,13 +46,12 @@ Etc.
 #include "SaveState_Structs_common.h"
 #include "Common.h"
 
-#include "AppleWin.h"	// g_SynchronousEventMgr
+#include "Core.h"	// g_SynchronousEventMgr
 #include "CardManager.h"
 #include "CPU.h"
-#include "Frame.h"	// FrameSetCursorPosByMousePos()
+#include "Interface.h"	// FrameSetCursorPosByMousePos()
 #include "Log.h"
 #include "Memory.h"
-#include "Video.h"
 #include "NTSC.h"	// NTSC_GetCyclesUntilVBlank()
 #include "YamlHelper.h"
 
@@ -588,7 +587,7 @@ void CMouseInterface::SetPositionAbs(int x, int y)
 {
 	m_iX = x;
 	m_iY = y;
-	FrameSetCursorPosByMousePos();
+	GetFrame().FrameSetCursorPosByMousePos();
 }
 
 void CMouseInterface::SetPositionRel(long dX, long dY, int* pOutOfBoundsX, int* pOutOfBoundsY)

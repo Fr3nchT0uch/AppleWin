@@ -1,9 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="source\AppleWin.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="source\6821.cpp">
       <Filter>Source Files\Emulator</Filter>
     </ClCompile>
@@ -51,9 +48,6 @@
     </ClCompile>
     <ClCompile Include="source\Debugger\Debugger_Symbols.cpp">
       <Filter>Source Files\Debugger</Filter>
-    </ClCompile>
-    <ClCompile Include="source\Frame.cpp">
-      <Filter>Source Files\Video</Filter>
     </ClCompile>
     <ClCompile Include="source\Disk.cpp">
       <Filter>Source Files\Disk</Filter>
@@ -202,18 +196,36 @@
     <ClCompile Include="source\SynchronousEventManager.cpp">
       <Filter>Source Files\Emulator</Filter>
     </ClCompile>
-    <ClCompile Include="source\DirectInput.cpp">
-      <Filter>Source Files\Emulator</Filter>
+    <ClCompile Include="source\Windows\DirectInput.cpp">
+      <Filter>Source Files\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Windows\WinVideo.cpp">
+      <Filter>Source Files\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Windows\WinFrame.cpp">
+      <Filter>Source Files\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Utilities.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Windows\AppleWin.cpp">
+      <Filter>Source Files\Windows</Filter>
+    </ClCompile>
+    <ClCompile Include="source\CmdLine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\FrameBase.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\Windows\Win32Frame.cpp">
+      <Filter>Source Files\Windows</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\AppleWin.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="source\CommonVICE\6510core.h">
-      <Filter>Source Files\CommonVICE</Filter>
-    </ClInclude>
-    <ClInclude Include="source\CommonVICE\alarm.h">
       <Filter>Source Files\CommonVICE</Filter>
     </ClInclude>
     <ClInclude Include="source\6821.h">
@@ -281,9 +293,6 @@
     </ClInclude>
     <ClInclude Include="source\Debugger\Debugger_Symbols.h">
       <Filter>Source Files\Debugger</Filter>
-    </ClInclude>
-    <ClInclude Include="source\Frame.h">
-      <Filter>Source Files\Video</Filter>
     </ClInclude>
     <ClInclude Include="source\Disk.h">
       <Filter>Source Files\Disk</Filter>
@@ -492,8 +501,35 @@
     <ClInclude Include="source\SynchronousEventManager.h">
       <Filter>Source Files\Emulator</Filter>
     </ClInclude>
-    <ClInclude Include="source\DirectInput.h">
-      <Filter>Source Files\Emulator</Filter>
+    <ClInclude Include="source\Windows\DirectInput.h">
+      <Filter>Source Files\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Windows\WinVideo.h">
+      <Filter>Source Files\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Windows\WinFrame.h">
+      <Filter>Source Files\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Core.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Utilities.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Windows\AppleWin.h">
+      <Filter>Source Files\Windows</Filter>
+    </ClInclude>
+    <ClInclude Include="source\CmdLine.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Interface.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\FrameBase.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Windows\Win32Frame.h">
+      <Filter>Source Files\Windows</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -734,6 +770,9 @@
     </Filter>
     <Filter Include="Source Files\Model">
       <UniqueIdentifier>{15b450e4-f89f-4d80-9c44-48b32f33f3e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Windows">
+      <UniqueIdentifier>{95d0abc3-4007-4eb0-8222-4579b565de23}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

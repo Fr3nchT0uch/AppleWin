@@ -87,9 +87,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "StdAfx.h"
 
 #include "CPU.h"
-#include "AppleWin.h"
+#include "Core.h"
 #include "CardManager.h"
-#include "Frame.h"
 #include "Memory.h"
 #include "Mockingboard.h"
 #include "MouseInterface.h"
@@ -97,7 +96,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "Speech.h"
 #endif
 #include "SynchronousEventManager.h"
-#include "Video.h"
 #include "NTSC.h"
 #include "Log.h"
 
@@ -442,11 +440,20 @@ static __forceinline void IRQ(ULONG& uExecutedCycles, BOOL& flagc, BOOL& flagn, 
 
 //===========================================================================
 
-#define READ _READ
-#define WRITE(value) _WRITE(value)
+#define READ _READ_WITH_IO_F8xx
+#define WRITE(value) _WRITE_WITH_IO_F8xx(value)
 #define HEATMAP_X(address)
 
 #include "CPU/cpu6502.h"  // MOS 6502
+
+#undef READ
+#undef WRITE
+
+//-------
+
+#define READ _READ
+#define WRITE(value) _WRITE(value)
+
 #include "CPU/cpu65C02.h" // WDC 65C02
 
 #undef READ
@@ -455,8 +462,8 @@ static __forceinline void IRQ(ULONG& uExecutedCycles, BOOL& flagc, BOOL& flagn, 
 
 //-----------------
 
-#define READ Heatmap_ReadByte(addr, uExecutedCycles)
-#define WRITE(value) Heatmap_WriteByte(addr, value, uExecutedCycles);
+#define READ Heatmap_ReadByte_With_IO_F8xx(addr, uExecutedCycles)
+#define WRITE(value) Heatmap_WriteByte_With_IO_F8xx(addr, value, uExecutedCycles);
 
 #define HEATMAP_X(address) Heatmap_X(address)
 
@@ -465,6 +472,14 @@ static __forceinline void IRQ(ULONG& uExecutedCycles, BOOL& flagc, BOOL& flagn, 
 #define Cpu6502 Cpu6502_debug
 #include "CPU/cpu6502.h"  // MOS 6502
 #undef Cpu6502
+
+#undef READ
+#undef WRITE
+
+//-------
+
+#define READ Heatmap_ReadByte(addr, uExecutedCycles)
+#define WRITE(value) Heatmap_WriteByte(addr, value, uExecutedCycles);
 
 #define Cpu65C02 Cpu65C02_debug
 #include "CPU/cpu65C02.h" // WDC 65C02
@@ -506,10 +521,10 @@ BYTE CpuRead(USHORT addr, ULONG uExecutedCycles)
 {
 	if (g_nAppMode == MODE_RUNNING)
 	{
-		return _READ;
+		return _READ_WITH_IO_F8xx;	// Superset of _READ
 	}
 
-	return Heatmap_ReadByte(addr, uExecutedCycles);
+	return Heatmap_ReadByte_With_IO_F8xx(addr, uExecutedCycles);
 }
 
 // Called by z80_WRMEM()
@@ -517,11 +532,11 @@ void CpuWrite(USHORT addr, BYTE value, ULONG uExecutedCycles)
 {
 	if (g_nAppMode == MODE_RUNNING)
 	{
-		_WRITE(value);
+		_WRITE_WITH_IO_F8xx(value);	// Superset of _WRITE
 		return;
 	}
 
-	Heatmap_WriteByte(addr, value, uExecutedCycles);
+	Heatmap_WriteByte_With_IO_F8xx(addr, value, uExecutedCycles);
 }
 
 //===========================================================================

@@ -32,14 +32,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "Debug.h"
 #include "Debugger_Display.h"
 
-#include "../AppleWin.h"
+#include "../Core.h"
+#include "../Interface.h"
 #include "../CPU.h"
-#include "../Frame.h"
+#include "../Windows/WinFrame.h"
 #include "../LanguageCard.h"
 #include "../Memory.h"
 #include "../Mockingboard.h"
 #include "../NTSC.h"
-#include "../Video.h"
 
 // NEW UI debugging - force display ALL meta-info (regs, stack, bp, watches, zp) for debugging purposes
 #define DEBUG_FORCE_DISPLAY 0
@@ -555,13 +555,9 @@ HDC GetDebuggerMemDC(void)
 		g_hDebuggerMemDC = CreateCompatibleDC(hFrameDC);
 
 		// CREATE A BITMAPINFO STRUCTURE FOR THE FRAME BUFFER
-		g_pDebuggerMemFramebufferinfo = (LPBITMAPINFO)VirtualAlloc(
-			NULL,
-			sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD),
-			MEM_COMMIT,
-			PAGE_READWRITE);
+		g_pDebuggerMemFramebufferinfo = (LPBITMAPINFO) new BYTE[sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD)];
 
-		ZeroMemory(g_pDebuggerMemFramebufferinfo, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
+		memset(g_pDebuggerMemFramebufferinfo, 0, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
 		g_pDebuggerMemFramebufferinfo->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 		g_pDebuggerMemFramebufferinfo->bmiHeader.biWidth = 560;
 		g_pDebuggerMemFramebufferinfo->bmiHeader.biHeight = 384;
@@ -596,7 +592,7 @@ void ReleaseDebuggerMemDC(void)
 
 		FrameReleaseDC();
 
-		VirtualFree(g_pDebuggerMemFramebufferinfo, 0, MEM_RELEASE);
+		delete [] g_pDebuggerMemFramebufferinfo;
 		g_pDebuggerMemFramebufferinfo = NULL;
 		g_pDebuggerMemFramebits = NULL;
 	}
@@ -611,13 +607,9 @@ HDC GetConsoleFontDC(void)
 		g_hConsoleFontDC = CreateCompatibleDC(hFrameDC);
 
 		// CREATE A BITMAPINFO STRUCTURE FOR THE FRAME BUFFER
-		 g_hConsoleFontFramebufferinfo = (LPBITMAPINFO)VirtualAlloc(
-			NULL,
-			sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD),
-			MEM_COMMIT,
-			PAGE_READWRITE);
+		g_hConsoleFontFramebufferinfo = (LPBITMAPINFO) new BYTE[sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD)];
 
-		ZeroMemory(g_hConsoleFontFramebufferinfo, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
+		memset(g_hConsoleFontFramebufferinfo, 0, sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD));
 		g_hConsoleFontFramebufferinfo->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 		g_hConsoleFontFramebufferinfo->bmiHeader.biWidth = CONSOLE_FONT_BITMAP_WIDTH;
 		g_hConsoleFontFramebufferinfo->bmiHeader.biHeight = CONSOLE_FONT_BITMAP_HEIGHT;
@@ -639,7 +631,7 @@ HDC GetConsoleFontDC(void)
 		// DRAW THE SOURCE IMAGE INTO THE SOURCE BIT BUFFER
 		HDC tmpDC = CreateCompatibleDC(hFrameDC);
 		// Pre-scaled bitmap
-		HBITMAP tmpFont = LoadBitmap(g_hInstance, TEXT("IDB_DEBUG_FONT_7x8"));  // Bitmap must be 112x128 as defined above
+		HBITMAP tmpFont = LoadBitmap(GetFrame().g_hInstance, TEXT("IDB_DEBUG_FONT_7x8"));  // Bitmap must be 112x128 as defined above
 		SelectObject(tmpDC, tmpFont);
 		BitBlt(g_hConsoleFontDC, 0, 0, CONSOLE_FONT_BITMAP_WIDTH, CONSOLE_FONT_BITMAP_HEIGHT,
 			tmpDC, 0, 0,
@@ -662,7 +654,7 @@ void ReleaseConsoleFontDC(void)
 		DeleteObject( g_hConsoleFontBitmap );
 		g_hConsoleFontBitmap = NULL;
 
-		VirtualFree(g_hConsoleFontFramebufferinfo, 0, MEM_RELEASE);
+		delete [] g_hConsoleFontFramebufferinfo;
 		g_hConsoleFontFramebufferinfo = NULL;
 		g_hConsoleFontFramebits = NULL;
 	}
@@ -690,7 +682,7 @@ void StretchBltMemToFrameDC(void)
 		wdest, hdest,										// int nWidthDest,   int nHeightDest,
 		GetDebuggerMemDC(),									// HDC hdcSrc,
 		0, 0,												// int nXOriginSrc,  int nYOriginSrc,
-		GetFrameBufferBorderlessWidth(), GetFrameBufferBorderlessHeight(),	// int nWidthSrc,    int nHeightSrc,
+		GetVideo().GetFrameBufferBorderlessWidth(), GetVideo().GetFrameBufferBorderlessHeight(),	// int nWidthSrc,    int nHeightSrc,
 		SRCCOPY                                             // DWORD dwRop
 	);
 }
@@ -760,7 +752,7 @@ static void PrintGlyph( const int xDst, const int yDst, const int glyph )
 	{
 #if _DEBUG
 		if ((xDst < 0) || (yDst < 0))
-			MessageBox( g_hFrameWindow, "X or Y out of bounds!", "PrintGlyph()", MB_OK );
+			MessageBox(GetFrame().g_hFrameWindow, "X or Y out of bounds!", "PrintGlyph()", MB_OK );
 #endif
 		int col = xDst / CONSOLE_FONT_WIDTH ;
 		int row = yDst / CONSOLE_FONT_HEIGHT;
@@ -876,7 +868,7 @@ int PrintText ( const char * pText, RECT & rRect )
 {
 #if _DEBUG
 	if (! pText)
-		MessageBox( g_hFrameWindow, "pText = NULL!", "DrawText()", MB_OK );
+		MessageBox(GetFrame().g_hFrameWindow, "pText = NULL!", "DrawText()", MB_OK );
 #endif
 
 	int nLen = strlen( pText );
@@ -3131,25 +3123,25 @@ void DrawSoftSwitches( int iSoftSwitch )
 		bool bSet;
 
 		// $C050 / $C051 = TEXTOFF/TEXTON = SW.TXTCLR/SW.TXTSET
-		bSet = !VideoGetSWTEXT();
+		bSet = !GetVideo().VideoGetSWTEXT();
 		_DrawSoftSwitch( rect, 0xC050, bSet, NULL, "GR.", "TEXT" );
 
 		// $C052 / $C053 = MIXEDOFF/MIXEDON = SW.MIXCLR/SW.MIXSET
 		// FULL/MIXED
 		// MIX OFF/ON
-		bSet = !VideoGetSWMIXED();
+		bSet = !GetVideo().VideoGetSWMIXED();
 		_DrawSoftSwitch( rect, 0xC052, bSet, NULL, "FULL", "MIX" );
 
 		// $C054 / $C055 = PAGE1/PAGE2 = PAGE2OFF/PAGE2ON = SW.LOWSCR/SW.HISCR
 		// PAGE 1 / 2
-		bSet = !VideoGetSWPAGE2();
+		bSet = !GetVideo().VideoGetSWPAGE2();
 		_DrawSoftSwitch( rect, 0xC054, bSet, "PAGE ", "1", "2" );
 		
 		// $C056 / $C057 LORES/HIRES = HIRESOFF/HIRESON = SW.LORES/SW.HIRES
 		// LO / HIRES
 		// LO / -----
 		// -- / HIRES
-		bSet = !VideoGetSWHIRES();
+		bSet = !GetVideo().VideoGetSWHIRES();
 		_DrawSoftSwitch( rect, 0xC056, bSet, NULL, "LO", "HI", "RES" );
 
 		DebuggerSetColorBG( DebuggerGetColor( BG_INFO ));
@@ -3157,7 +3149,7 @@ void DrawSoftSwitches( int iSoftSwitch )
 
 		// 280/560 HGR
 		// C05E = ON, C05F = OFF
-		bSet = VideoGetSWDHIRES();
+		bSet = GetVideo().VideoGetSWDHIRES();
 		_DrawSoftSwitch( rect, 0xC05E, bSet, NULL, "DHGR", "HGR" );
 
 
@@ -3165,18 +3157,18 @@ void DrawSoftSwitches( int iSoftSwitch )
 		int bgMemory = BG_DATA_2;
 
 		// C000 = 80STOREOFF, C001 = 80STOREON
-		bSet = !VideoGetSW80STORE();
+		bSet = !GetVideo().VideoGetSW80STORE();
 		_DrawSoftSwitch( rect, 0xC000, bSet, "80Sto", "0", "1", NULL, bgMemory );
 
 		// C002 .. C005
 		_DrawSoftSwitchMainAuxBanks( rect, bgMemory );
 
 		// C00C = off, C00D = on
-		bSet = !VideoGetSW80COL();
+		bSet = !GetVideo().VideoGetSW80COL();
 		_DrawSoftSwitch( rect, 0xC00C, bSet, "Col", "40", "80", NULL, bgMemory );
 
 		// C00E = off, C00F = on
-		bSet = !VideoGetSWAltCharSet();
+		bSet = !GetVideo().VideoGetSWAltCharSet();
 		_DrawSoftSwitch( rect, 0xC00E, bSet, NULL, "ASC", "MOUS", NULL, bgMemory ); // ASCII/MouseText
 
 #if SOFTSWITCH_LANGCARD
@@ -3202,7 +3194,7 @@ void DrawSoftSwitches( int iSoftSwitch )
 void DrawSourceLine( int iSourceLine, RECT &rect )
 {
 	char sLine[ CONSOLE_WIDTH ];
-	ZeroMemory( sLine, CONSOLE_WIDTH );
+	memset( sLine, 0, CONSOLE_WIDTH );
 
 	if ((iSourceLine >=0) && (iSourceLine < g_AssemblerSourceBuffer.GetNumLines() ))
 	{
@@ -4122,7 +4114,7 @@ void UpdateDisplay (Update_t bUpdate)
 	if (spDrawMutex)
 	{
 #if DEBUG
-		MessageBox( g_hFrameWindow, "Already drawing!", "!", MB_OK );
+		MessageBox( GetFrame().g_hFrameWindow, "Already drawing!", "!", MB_OK );
 #endif
 	}
 	spDrawMutex = true;

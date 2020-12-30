@@ -3,9 +3,8 @@
 #include "StdAfx.h"
 
 #include "RGBMonitor.h"
-#include "Frame.h"
 #include "Memory.h" // MemGetMainPtr() MemGetAuxPtr()
-#include "Video.h"
+#include "Interface.h"
 #include "Card.h"
 #include "YamlHelper.h"
 
@@ -116,8 +115,6 @@ const BYTE DoubleHiresPalIndex[16] = {
 		ORANGE,  PINK,      YELLOW,    WHITE
 	};
 
-#define  SETRGBCOLOR(r,g,b) {b,g,r,0}
-
 static RGBQUAD* g_pPaletteRGB;
 
 static RGBQUAD PaletteRGB_NTSC[] =
@@ -217,7 +214,7 @@ static void V_CreateLookup_DoubleHires ()
     int coloffs = SIZE * column;
     for (unsigned byteval = 0; byteval < 256; byteval++) {
       int color[SIZE];
-      ZeroMemory(color,sizeof(color));
+      memset(color, 0, sizeof(color));
       unsigned pattern = MAKEWORD(byteval,column);
       int pixel;
       for (pixel = 1; pixel < 15; pixel++) {
@@ -517,7 +514,7 @@ static void CopyMixedSource(int x, int y, int sx, int sy, bgra_t *pVideoAddress)
 
 	const int matx = x*14;
 	const int maty = HGR_MATRIX_YOFFSET + y;
-	const bool isSWMIXED = VideoGetSWMIXED();
+	const bool isSWMIXED = GetVideo().VideoGetSWMIXED();
 
 	// transfer 14 pixels (i.e. the visible part of an apple hgr-byte) from row to pixelmatrix
 	for (int nBytes=13; nBytes>=0; nBytes--)
@@ -525,8 +522,8 @@ static void CopyMixedSource(int x, int y, int sx, int sy, bgra_t *pVideoAddress)
 		hgrpixelmatrix[matx+nBytes][maty] = *(pSrc+nBytes);
 	}
 
-	const bool bIsHalfScanLines = IsVideoStyle(VS_HALF_SCANLINES);
-	const UINT frameBufferWidth = GetFrameBufferWidth();
+	const bool bIsHalfScanLines = GetVideo().IsVideoStyle(VS_HALF_SCANLINES);
+	const UINT frameBufferWidth = GetVideo().GetFrameBufferWidth();
 
 	for (int nBytes=13; nBytes>=0; nBytes--)
 	{
@@ -540,7 +537,7 @@ static void CopyMixedSource(int x, int y, int sx, int sy, bgra_t *pVideoAddress)
 			if (bIsHalfScanLines && (h & 1))
 			{
 				// 50% Half Scan Line clears every odd scanline (and SHIFT+PrintScreen saves only the even rows)
-				*(pDst+nBytes) = 0;
+				*(pDst+nBytes) = OPAQUE_BLACK;
 			}
 			else
 			{
@@ -562,15 +559,15 @@ static void CopySource(int w, int h, int sx, int sy, bgra_t *pVideoAddress, cons
 	UINT32* pDst = (UINT32*) pVideoAddress;
 	const BYTE* const pSrc = g_aSourceStartofLine[ sy ] + sx;
 
-	const bool bIsHalfScanLines = IsVideoStyle(VS_HALF_SCANLINES);
-	const UINT frameBufferWidth = GetFrameBufferWidth();
+	const bool bIsHalfScanLines = GetVideo().IsVideoStyle(VS_HALF_SCANLINES);
+	const UINT frameBufferWidth = GetVideo().GetFrameBufferWidth();
 
 	while (h--)
 	{
 		if (bIsHalfScanLines && !(h & 1))
 		{
 			// 50% Half Scan Line clears every odd scanline (and SHIFT+PrintScreen saves only the even rows)
-			std::fill(pDst, pDst + w, 0);
+			std::fill(pDst, pDst + w, OPAQUE_BLACK);
 		}
 		else
 		{
@@ -597,14 +594,14 @@ void UpdateHiResCell (int x, int y, uint16_t addr, bgra_t *pVideoAddress)
 	BYTE byteval2 =            *(pMain);
 	BYTE byteval3 = (x < 39) ? *(pMain+1) : 0;
 
-	if (g_uVideoMode & VF_DHIRES)	// ie. VF_DHIRES=1, VF_HIRES=1, VF_80COL=0 - NTSC.cpp refers to this as "DoubleHires40"
+	if (GetVideo().GetVideoMode() & VF_DHIRES)	// ie. VF_DHIRES=1, VF_HIRES=1, VF_80COL=0 - NTSC.cpp refers to this as "DoubleHires40"
 	{
 		byteval1 &= 0x7f;
 		byteval2 &= 0x7f;
 		byteval3 &= 0x7f;
 	}
 
-	if (IsVideoStyle(VS_COLOR_VERTICAL_BLEND))
+	if (GetVideo().IsVideoStyle(VS_COLOR_VERTICAL_BLEND))
 	{
 		CopyMixedSource(x, y, SRCOFFS_HIRES+HIRES_COLUMN_OFFSET+((x & 1)*HIRES_COLUMN_SUBUNIT_SIZE), (int)byteval2, pVideoAddress);
 	}
@@ -730,15 +727,15 @@ void UpdateHiResRGBCell(int x, int y, uint16_t addr, bgra_t* pVideoAddress)
 		dwordval = dwordval >> 1;
 	}
 
-	const bool bIsHalfScanLines = IsVideoStyle(VS_HALF_SCANLINES);
+	const bool bIsHalfScanLines = GetVideo().IsVideoStyle(VS_HALF_SCANLINES);
 
 	// Second line
 	UINT32* pSrc = (UINT32*)pVideoAddress;
-	pDst = pSrc - GetFrameBufferWidth();
+	pDst = pSrc - GetVideo().GetFrameBufferWidth();
 	if (bIsHalfScanLines)
 	{
 		// Scanlines
-		std::fill(pDst, pDst + 14, 0);
+		std::fill(pDst, pDst + 14, OPAQUE_BLACK);
 	}
 	else
 	{
@@ -945,15 +942,15 @@ void UpdateDHiResCellRGB(int x, int y, uint16_t addr, bgra_t* pVideoAddress, boo
 		}
 	}
 
-	const bool bIsHalfScanLines = IsVideoStyle(VS_HALF_SCANLINES);
+	const bool bIsHalfScanLines = GetVideo().IsVideoStyle(VS_HALF_SCANLINES);
 
 	// Second line
 	UINT32* pSrc = (UINT32*)pVideoAddress ;
-	pDst = pSrc - GetFrameBufferWidth();
+	pDst = pSrc - GetVideo().GetFrameBufferWidth();
 	if (bIsHalfScanLines)
 	{
 		// Scanlines
-		std::fill(pDst, pDst + 14, 0);
+		std::fill(pDst, pDst + 14, OPAQUE_BLACK);
 	}
 	else
 	{
@@ -1124,8 +1121,8 @@ void UpdateDuochromeCell(int h, int w, bgra_t* pVideoAddress, uint8_t bits, uint
 {
 	UINT32* pDst = (UINT32*)pVideoAddress;
 
-	const bool bIsHalfScanLines = IsVideoStyle(VS_HALF_SCANLINES);
-	const UINT frameBufferWidth = GetFrameBufferWidth();
+	const bool bIsHalfScanLines = GetVideo().IsVideoStyle(VS_HALF_SCANLINES);
+	const UINT frameBufferWidth = GetVideo().GetFrameBufferWidth();
 	RGBQUAD colors[2];
 	// use LoRes palette
 	background += 12;
@@ -1142,7 +1139,7 @@ void UpdateDuochromeCell(int h, int w, bgra_t* pVideoAddress, uint8_t bits, uint
 		if (bIsHalfScanLines && !(h & 1))
 		{
 			// 50% Half Scan Line clears every odd scanline (and SHIFT+PrintScreen saves only the even rows)
-			std::fill(pDst, pDst + w, 0);
+			std::fill(pDst, pDst + w, OPAQUE_BLACK);
 		}
 		else
 		{
@@ -1177,7 +1174,7 @@ static void V_CreateDIBSections(void)
 		g_aSourceStartofLine[ y ] = g_pSourcePixels + SRCOFFS_TOTAL*((MAX_SOURCE_Y-1) - y);
 
 	// DRAW THE SOURCE IMAGE INTO THE SOURCE BIT BUFFER
-	ZeroMemory(g_pSourcePixels, SRCOFFS_TOTAL*MAX_SOURCE_Y);
+	memset(g_pSourcePixels, 0, SRCOFFS_TOTAL*MAX_SOURCE_Y);
 
 	V_CreateLookup_Lores();
 	V_CreateLookup_HiResHalfPixel_Authentic(VT_COLOR_IDEALIZED);
@@ -1243,7 +1240,7 @@ void RGB_SetVideoMode(WORD address)
 	if (address == 0x5F && g_rgbPrevAN3Addr == 0x5E)
 	{
 		g_rgbFlags = (g_rgbFlags << 1) & 3;
-		g_rgbFlags |= ((g_uVideoMode & VF_80COL) ? 0 : 1);	// clock in !80COL
+		g_rgbFlags |= ((GetVideo().GetVideoMode() & VF_80COL) ? 0 : 1);	// clock in !80COL
 		g_rgbMode = g_rgbFlags;								// latch F2,F1
 	}
 

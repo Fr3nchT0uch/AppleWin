@@ -24,12 +24,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "StdAfx.h"
 
 #include "PageDisk.h"
-#include "PropertySheetHelper.h"
+#include "PropertySheet.h"
 
-#include "../AppleWin.h"
+#include "../Windows/AppleWin.h"
 #include "../CardManager.h"
 #include "../Disk.h"	// Drive_e, Disk_Status_e
-#include "../Frame.h"
 #include "../Registry.h"
 #include "../resource/resource.h"
 
@@ -92,14 +91,14 @@ BOOL CPageDisk::DlgProcInternal(HWND hWnd, UINT message, WPARAM wparam, LPARAM l
 			if (HIWORD(wparam) == CBN_SELCHANGE)
 			{
 				HandleFloppyDriveCombo(hWnd, DRIVE_1, LOWORD(wparam));
-				FrameRefreshStatus(DRAW_BUTTON_DRIVES);
+				GetFrame().FrameRefreshStatus(DRAW_BUTTON_DRIVES);
 			}
 			break;
 		case IDC_COMBO_DISK2:
 			if (HIWORD(wparam) == CBN_SELCHANGE)
 			{
 				HandleFloppyDriveCombo(hWnd, DRIVE_2, LOWORD(wparam));
-				FrameRefreshStatus(DRAW_BUTTON_DRIVES);
+				GetFrame().FrameRefreshStatus(DRAW_BUTTON_DRIVES);
 			}
 			break;
 		case IDC_COMBO_HDD1:
@@ -413,7 +412,7 @@ UINT CPageDisk::RemovalConfirmation(UINT uCommand)
 
 	if (bMsgBox)
 	{
-		int nRes = MessageBox(g_hFrameWindow, szText, TEXT("Eject/Unplug Warning"), MB_ICONWARNING | MB_YESNO | MB_SETFOREGROUND);
+		int nRes = MessageBox(GetFrame().g_hFrameWindow, szText, TEXT("Eject/Unplug Warning"), MB_ICONWARNING | MB_YESNO | MB_SETFOREGROUND);
 		if (nRes == IDNO)
 			uCommand = 0;
 	}

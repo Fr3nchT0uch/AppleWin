@@ -34,7 +34,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 //#define STRICT
 
-#include "DirectInput.h"
+#include "Windows/DirectInput.h"
 #include "SoundCore.h"	// SAFE_RELEASE()
 #include "Log.h"
 #include "Common.h"
@@ -222,7 +222,7 @@ namespace DIMouse
 			return S_OK;
 
 		// Get the input's device state, and put the state in dims
-		ZeroMemory( &dims2, sizeof(dims2) );
+		memset( &dims2, 0, sizeof(dims2) );
 		hr = g_pMouse->GetDeviceState( sizeof(DIMOUSESTATE2), &dims2 );
 		if( FAILED(hr) ) 
 		{

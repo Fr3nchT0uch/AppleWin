@@ -30,7 +30,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "StdAfx.h"
 
 #include "CardManager.h"
-#include "AppleWin.h"
+#include "Core.h"
 
 #include "Disk.h"
 #include "MouseInterface.h"
@@ -131,6 +131,8 @@ void CardManager::InsertAux(SS_CARDTYPE type)
 	if (type == CT_Empty)
 		return RemoveAux();
 
+	RemoveAuxInternal();
+
 	switch (type)
 	{
 	case CT_80Col:
@@ -146,10 +148,19 @@ void CardManager::InsertAux(SS_CARDTYPE type)
 		_ASSERT(0);
 		break;
 	}
+
+	// for consistency m_aux must never be NULL
+	_ASSERT(m_aux != NULL);
+}
+
+void CardManager::RemoveAuxInternal()
+{
+	delete m_aux;
+	m_aux = NULL;
 }
 
 void CardManager::RemoveAux(void)
 {
-	delete m_aux;
+	RemoveAuxInternal();
 	m_aux = new EmptyCard;
 }

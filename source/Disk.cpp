@@ -34,15 +34,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "SaveState_Structs_v1.h"
 
-#include "AppleWin.h"
+#include "Interface.h"
+#include "Core.h"
 #include "CPU.h"
 #include "DiskImage.h"
-#include "Frame.h"
 #include "Log.h"
 #include "Memory.h"
 #include "Registry.h"
 #include "SaveState.h"
-#include "Video.h"
 #include "YamlHelper.h"
 
 #include "../resource/resource.h"
@@ -211,20 +210,26 @@ void Disk2InterfaceCard::SaveLastDiskImage(const int drive)
 //===========================================================================
 
 // Called by ControlMotor() & Enable()
-void Disk2InterfaceCard::CheckSpinning(const ULONG uExecutedCycles)
+void Disk2InterfaceCard::CheckSpinning(const bool stateChanged, const ULONG uExecutedCycles)
 {
-	DWORD modechange = (m_floppyMotorOn && !m_floppyDrive[m_currDrive].m_spinning);
+	bool modeChanged = m_floppyMotorOn && !m_floppyDrive[m_currDrive].m_spinning;
 
-	if (m_floppyMotorOn)
+	if (m_floppyMotorOn && IsDriveConnected(m_currDrive))
 		m_floppyDrive[m_currDrive].m_spinning = SPINNING_CYCLES;
 
-	if (modechange)
-		FrameDrawDiskLEDS( (HDC)0 );
+	if (modeChanged)
+		GetFrame().FrameDrawDiskLEDS( (HDC)0 );
 
-	if (modechange)
+	if (modeChanged)
 	{
 		// Set m_diskLastCycle when motor changes: not spinning (ie. off for 1 sec) -> on
 		m_diskLastCycle = g_nCumulativeCycles;
+	}
+
+	if (m_floppyMotorOn && stateChanged)
+	{
+		// Set m_motorOnCycle when: motor changes to on, or the other drive is enabled (and motor is on)
+		m_floppyDrive[m_currDrive].m_motorOnCycle = g_nCumulativeCycles;
 	}
 }
 
@@ -346,7 +351,17 @@ void Disk2InterfaceCard::EjectDisk(const int drive)
 	Snapshot_UpdatePath();
 
 	SaveLastDiskImage(drive);
-	Video_ResetScreenshotCounter("");
+	GetVideo().Video_ResetScreenshotCounter("");
+}
+
+void Disk2InterfaceCard::UnplugDrive(const int drive)
+{
+	if (!IsDriveValid(drive))
+		return;
+
+	EjectDisk(drive);
+
+	m_floppyDrive[drive].m_isConnected = false;
 }
 
 //===========================================================================
@@ -403,17 +418,20 @@ void Disk2InterfaceCard::Boot(void)
 void __stdcall Disk2InterfaceCard::ControlMotor(WORD, WORD address, BYTE, BYTE, ULONG uExecutedCycles)
 {
 	BOOL newState = address & 1;
+	bool stateChanged = (newState != m_floppyMotorOn);
 
-	if (newState != m_floppyMotorOn)	// motor changed state
+	if (stateChanged)
+	{
+		m_floppyMotorOn = newState;
 		m_formatTrack.DriveNotWritingTrack();
+	}
 
-	m_floppyMotorOn = newState;
 	// NB. Motor off doesn't reset the Command Decoder like reset. (UTAIIe figures 9.7 & 9.8 chip C2)
 	// - so it doesn't reset this state: m_seqFunc, m_magnetStates
 #if LOG_DISK_MOTOR
 	LOG_DISK("%08X: motor %s\r\n", (UINT32)g_nCumulativeCycles, (m_floppyMotorOn) ? "on" : "off");
 #endif
-	CheckSpinning(uExecutedCycles);
+	CheckSpinning(stateChanged, uExecutedCycles);
 }
 
 //===========================================================================
@@ -492,7 +510,7 @@ void __stdcall Disk2InterfaceCard::ControlStepper(WORD, WORD address, BYTE, BYTE
 		pDrive->m_phasePrecise = newPhasePrecise;
 		pFloppy->m_trackimagedata = false;
 		m_formatTrack.DriveNotWritingTrack();
-		FrameDrawDiskStatus((HDC)0);	// Show track status (GH#201)
+		GetFrame().FrameDrawDiskStatus((HDC)0);	// Show track status (GH#201)
 	}
 
 #if LOG_DISK_PHASES
@@ -527,13 +545,16 @@ void Disk2InterfaceCard::Destroy(void)
 
 void __stdcall Disk2InterfaceCard::Enable(WORD, WORD address, BYTE, BYTE, ULONG uExecutedCycles)
 {
-	m_currDrive = address & 1;
+	WORD newDrive = address & 1;
+	bool stateChanged = (newDrive != m_currDrive);
+
+	m_currDrive = newDrive;
 #if LOG_DISK_ENABLE_DRIVE
 	LOG_DISK("%08X: enable drive: %d\r\n", (UINT32)g_nCumulativeCycles, m_currDrive);
 #endif
 	m_floppyDrive[!m_currDrive].m_spinning   = 0;
 	m_floppyDrive[!m_currDrive].m_writelight = 0;
-	CheckSpinning(uExecutedCycles);
+	CheckSpinning(stateChanged, uExecutedCycles);
 }
 
 //===========================================================================
@@ -661,7 +682,7 @@ ImageError_e Disk2InterfaceCard::InsertDisk(const int drive, LPCTSTR pszImageFil
 		if (!strcmp(pszOtherPathname.c_str(), szCurrentPathname))
 		{
 			EjectDisk(!drive);
-			FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
+			GetFrame().FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
 		}
 	}
 
@@ -675,7 +696,7 @@ ImageError_e Disk2InterfaceCard::InsertDisk(const int drive, LPCTSTR pszImageFil
 	{
 		TCHAR szText[100+MAX_PATH];
 		StringCbPrintf(szText, sizeof(szText), "Only the first file in a multi-file zip is supported\nUse disk image '%s' ?", pFloppy->m_strFilenameInZip.c_str());
-		int nRes = MessageBox(g_hFrameWindow, szText, TEXT("Multi-Zip Warning"), MB_ICONWARNING | MB_YESNO | MB_SETFOREGROUND);
+		int nRes = MessageBox(GetFrame().g_hFrameWindow, szText, TEXT("Multi-Zip Warning"), MB_ICONWARNING | MB_YESNO | MB_SETFOREGROUND);
 		if (nRes == IDNO)
 		{
 			EjectDisk(drive);
@@ -688,14 +709,14 @@ ImageError_e Disk2InterfaceCard::InsertDisk(const int drive, LPCTSTR pszImageFil
 		GetImageTitle(pszImageFilename, pFloppy->m_imagename, pFloppy->m_fullname);
 		Snapshot_UpdatePath();
 
-		Video_ResetScreenshotCounter(pFloppy->m_imagename);
+		GetVideo().Video_ResetScreenshotCounter(pFloppy->m_imagename);
 
 		if (g_nAppMode == MODE_LOGO)
 			InitFirmware(GetCxRomPeripheral());
 	}
 	else
 	{
-		Video_ResetScreenshotCounter("");
+		GetVideo().Video_ResetScreenshotCounter("");
 	}
 
 	SaveLastDiskImage(drive);
@@ -805,7 +826,7 @@ void Disk2InterfaceCard::NotifyInvalidImage(const int drive, LPCTSTR pszImageFil
 	}
 
 	MessageBox(
-		g_hFrameWindow,
+		GetFrame().g_hFrameWindow,
 		szBuffer,
 		g_pAppTitle.c_str(),
 		MB_ICONEXCLAMATION | MB_SETFOREGROUND);
@@ -887,6 +908,22 @@ bool Disk2InterfaceCard::LogWriteCheckSyncFF(ULONG& uCycleDelta)
 
 //===========================================================================
 
+void Disk2InterfaceCard::UpdateLatchForEmptyDrive(FloppyDrive* pDrive)
+{
+	if (!pDrive->m_isConnected)
+	{
+		m_floppyLatch = 0x80;	// GH#864
+		return;
+	}
+
+	// Drive connected
+
+	if ((g_nCumulativeCycles - pDrive->m_motorOnCycle) < MOTOR_ON_UNTIL_LSS_STABLE_CYCLES)
+		m_floppyLatch = 0x80;	// GH#864
+	else
+		m_floppyLatch = rand() & 0xFF;	// GH#748
+}
+
 void __stdcall Disk2InterfaceCard::ReadWrite(WORD pc, WORD addr, BYTE bWrite, BYTE d, ULONG uExecutedCycles)
 {
 	FloppyDrive* pDrive = &m_floppyDrive[m_currDrive];
@@ -896,10 +933,7 @@ void __stdcall Disk2InterfaceCard::ReadWrite(WORD pc, WORD addr, BYTE bWrite, BY
 		ReadTrack(m_currDrive, uExecutedCycles);
 
 	if (!pFloppy->m_trackimagedata)
-	{
-		m_floppyLatch = rand() & 0xFF;	// GH#748
-		return;
-	}
+		return UpdateLatchForEmptyDrive(pDrive);
 
 	// Improve precision of "authentic" drive mode - GH#125
 	UINT uSpinNibbleCount = 0;
@@ -998,7 +1032,7 @@ void __stdcall Disk2InterfaceCard::ReadWrite(WORD pc, WORD addr, BYTE bWrite, BY
 
 	// Show track status (GH#201) - NB. Prevent flooding of forcing UI to redraw!!!
 	if ((pFloppy->m_byte & 0xFF) == 0)
-		FrameDrawDiskStatus( (HDC)0 );
+		GetFrame().FrameDrawDiskStatus( (HDC)0 );
 }
 
 //===========================================================================
@@ -1098,8 +1132,7 @@ void __stdcall Disk2InterfaceCard::DataLatchReadWriteWOZ(WORD pc, WORD addr, BYT
 	if (!floppy.m_trackimagedata)
 	{
 		_ASSERT(0);		// Can't happen for WOZ - ReadTrack() should return an empty track
-		m_floppyLatch = rand() & 0xFF;	// GH#748
-		return;
+		return UpdateLatchForEmptyDrive(&drive);
 	}
 
 	// Don't change latch if drive off after 1 second drive-off delay (UTAIIe page 9-13)
@@ -1150,7 +1183,7 @@ void __stdcall Disk2InterfaceCard::DataLatchReadWriteWOZ(WORD pc, WORD addr, BYT
 
 	// Show track status (GH#201) - NB. Prevent flooding of forcing UI to redraw!!!
 	if ((floppy.m_byte & 0xFF) == 0)
-		FrameDrawDiskStatus((HDC)0);
+		GetFrame().FrameDrawDiskStatus((HDC)0);
 }
 
 void Disk2InterfaceCard::DataLatchReadWOZ(WORD pc, WORD addr, UINT bitCellRemainder)
@@ -1509,11 +1542,11 @@ void Disk2InterfaceCard::Reset(const bool bIsPowerCycle)
 		m_floppyDrive[DRIVE_2].m_spinning   = 0;
 		m_floppyDrive[DRIVE_2].m_writelight = 0;
 
-		FrameRefreshStatus(DRAW_LEDS, false);
+		GetFrame().FrameRefreshStatus(DRAW_LEDS, false);
 	}
 
 	InitFirmware(GetCxRomPeripheral());
-	FrameRefreshStatus(DRAW_TITLE, false);
+	GetFrame().FrameRefreshStatus(DRAW_TITLE, false);
 }
 
 void Disk2InterfaceCard::ResetSwitches(void)
@@ -1528,6 +1561,12 @@ void Disk2InterfaceCard::ResetSwitches(void)
 
 bool Disk2InterfaceCard::UserSelectNewDiskImage(const int drive, LPCSTR pszFilename/*=""*/)
 {
+	if (!IsDriveConnected(drive))
+	{
+		MessageBox(GetFrame().g_hFrameWindow, "Drive not connected!", "Insert disk", MB_ICONEXCLAMATION|MB_SETFOREGROUND|MB_OK);
+		return false;
+	}
+
 	TCHAR directory[MAX_PATH];
 	TCHAR filename[MAX_PATH];
 	TCHAR title[40];
@@ -1537,13 +1576,11 @@ bool Disk2InterfaceCard::UserSelectNewDiskImage(const int drive, LPCSTR pszFilen
 	RegLoadString(TEXT(REG_PREFS), TEXT(REGVALUE_PREF_START_DIR), 1, directory, MAX_PATH, TEXT(""));
 	StringCbPrintf(title, 40, TEXT("Select Disk Image For Drive %d"), drive + 1);
 
-	_ASSERT(sizeof(OPENFILENAME) == sizeof(OPENFILENAME_NT4));	// Required for Win98/ME support (selected by _WIN32_WINNT=0x0400 in stdafx.h)
-
 	OPENFILENAME ofn;
-	ZeroMemory(&ofn,sizeof(OPENFILENAME));
+	memset(&ofn, 0, sizeof(OPENFILENAME));
 	ofn.lStructSize     = sizeof(OPENFILENAME);
-	ofn.hwndOwner       = g_hFrameWindow;
-	ofn.hInstance       = g_hInstance;
+	ofn.hwndOwner       = GetFrame().g_hFrameWindow;
+	ofn.hInstance       = GetFrame().g_hInstance;
 	ofn.lpstrFilter     = TEXT("All Images\0*.bin;*.do;*.dsk;*.nib;*.po;*.gz;*.woz;*.zip;*.2mg;*.2img;*.iie;*.apl\0")
 						  TEXT("Disk Images (*.bin,*.do,*.dsk,*.nib,*.po,*.gz,*.woz,*.zip,*.2mg,*.2img,*.iie)\0*.bin;*.do;*.dsk;*.nib;*.po;*.gz;*.woz;*.zip;*.2mg;*.2img;*.iie\0")
 						  TEXT("All Files\0*.*\0");
@@ -1647,7 +1684,7 @@ void __stdcall Disk2InterfaceCard::SetWriteMode(WORD, WORD, BYTE, BYTE, ULONG uE
 	m_floppyDrive[m_currDrive].m_writelight = WRITELIGHT_CYCLES;
 
 	if (modechange)
-		FrameDrawDiskLEDS( (HDC)0 );
+		GetFrame().FrameDrawDiskLEDS( (HDC)0 );
 }
 
 //===========================================================================
@@ -1663,8 +1700,8 @@ void Disk2InterfaceCard::UpdateDriveState(DWORD cycles)
 		{
 			if (!(pDrive->m_spinning -= MIN(pDrive->m_spinning, cycles)))
 			{
-				FrameDrawDiskLEDS( (HDC)0 );
-				FrameDrawDiskStatus( (HDC)0 );
+				GetFrame().FrameDrawDiskLEDS( (HDC)0 );
+				GetFrame().FrameDrawDiskStatus( (HDC)0 );
 			}
 		}
 
@@ -1676,8 +1713,8 @@ void Disk2InterfaceCard::UpdateDriveState(DWORD cycles)
 		{
 			if (!(pDrive->m_writelight -= MIN(pDrive->m_writelight, cycles)))
 			{
-				FrameDrawDiskLEDS( (HDC)0 );
-				FrameDrawDiskStatus( (HDC)0 );
+				GetFrame().FrameDrawDiskLEDS( (HDC)0 );
+				GetFrame().FrameDrawDiskStatus( (HDC)0 );
 			}
 		}
 	}
@@ -1693,7 +1730,7 @@ bool Disk2InterfaceCard::DriveSwap(void)
 	{
 		// 1.26.2.4 Prompt when trying to swap disks while drive is on instead of silently failing
 		int status = MessageBox(
-			g_hFrameWindow,
+			GetFrame().g_hFrameWindow,
 			"WARNING:\n"
 				"\n"
 				"\tAttempting to swap a disk while a drive is on\n"
@@ -1733,7 +1770,7 @@ bool Disk2InterfaceCard::DriveSwap(void)
 	SaveLastDiskImage(DRIVE_1);
 	SaveLastDiskImage(DRIVE_2);
 
-	FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES, false);
+	GetFrame().FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES, false);
 
 	return true;
 }
@@ -1922,7 +1959,8 @@ BYTE __stdcall Disk2InterfaceCard::IOWrite(WORD pc, WORD addr, BYTE bWrite, BYTE
 // 4: Added: WOZ state
 //    Split up 'Unit' putting some state into a new 'Floppy'
 // 5: Added: Sequencer Function
-static const UINT kUNIT_VERSION = 5;
+// 6: Added: Drive Connected & Motor On Cycle
+static const UINT kUNIT_VERSION = 6;
 
 #define SS_YAML_VALUE_CARD_DISK2 "Disk]["
 
@@ -1941,14 +1979,16 @@ static const UINT kUNIT_VERSION = 5;
 #define SS_YAML_KEY_LSS_SEQUENCER_FUNCTION "LSS Sequencer Function"
 
 #define SS_YAML_KEY_DISK2UNIT "Unit"
-#define SS_YAML_KEY_FILENAME "Filename"
+#define SS_YAML_KEY_DRIVE_CONNECTED "Drive Connected"
 #define SS_YAML_KEY_PHASE "Phase"
 #define SS_YAML_KEY_PHASE_PRECISE "Phase (precise)"
 #define SS_YAML_KEY_TRACK "Track"	// deprecated at v4
 #define SS_YAML_KEY_HEAD_WINDOW "Head Window"
 #define SS_YAML_KEY_LAST_STEPPER_CYCLE "Last Stepper Cycle"
+#define SS_YAML_KEY_MOTOR_ON_CYCLE "Motor On Cycle"
 
 #define SS_YAML_KEY_FLOPPY "Floppy"
+#define SS_YAML_KEY_FILENAME "Filename"
 #define SS_YAML_KEY_BYTE "Byte"
 #define SS_YAML_KEY_NIBBLES "Nibbles"
 #define SS_YAML_KEY_BIT_OFFSET "Bit Offset"
@@ -1990,10 +2030,12 @@ void Disk2InterfaceCard::SaveSnapshotFloppy(YamlSaveHelper& yamlSaveHelper, UINT
 void Disk2InterfaceCard::SaveSnapshotDriveUnit(YamlSaveHelper& yamlSaveHelper, UINT unit)
 {
 	YamlSaveHelper::Label label(yamlSaveHelper, "%s%d:\n", SS_YAML_KEY_DISK2UNIT, unit);
+	yamlSaveHelper.SaveBool(SS_YAML_KEY_DRIVE_CONNECTED, m_floppyDrive[unit].m_isConnected);
 	yamlSaveHelper.SaveUint(SS_YAML_KEY_PHASE, m_floppyDrive[unit].m_phase);
 	yamlSaveHelper.SaveFloat(SS_YAML_KEY_PHASE_PRECISE, m_floppyDrive[unit].m_phasePrecise);	// v4
 	yamlSaveHelper.SaveHexUint4(SS_YAML_KEY_HEAD_WINDOW, m_floppyDrive[unit].m_headWindow);		// v4
 	yamlSaveHelper.SaveHexUint64(SS_YAML_KEY_LAST_STEPPER_CYCLE, m_floppyDrive[unit].m_lastStepperCycle);	// v4
+	yamlSaveHelper.SaveHexUint64(SS_YAML_KEY_MOTOR_ON_CYCLE, m_floppyDrive[unit].m_motorOnCycle);	// v6
 	yamlSaveHelper.SaveUint(SS_YAML_KEY_SPINNING, m_floppyDrive[unit].m_spinning);
 	yamlSaveHelper.SaveUint(SS_YAML_KEY_WRITE_LIGHT, m_floppyDrive[unit].m_writelight);
 
@@ -2125,6 +2167,12 @@ bool Disk2InterfaceCard::LoadSnapshotDriveUnitv4(YamlLoadHelper& yamlLoadHelper,
 	m_floppyDrive[unit].m_spinning = yamlLoadHelper.LoadUint(SS_YAML_KEY_SPINNING);
 	m_floppyDrive[unit].m_writelight = yamlLoadHelper.LoadUint(SS_YAML_KEY_WRITE_LIGHT);
 
+	if (version >= 6)
+	{
+		m_floppyDrive[unit].m_isConnected = yamlLoadHelper.LoadBool(SS_YAML_KEY_DRIVE_CONNECTED);
+		m_floppyDrive[unit].m_motorOnCycle = yamlLoadHelper.LoadUint64(SS_YAML_KEY_MOTOR_ON_CYCLE);
+	}
+
 	yamlLoadHelper.PopMap();
 
 	return bImageError;
@@ -2213,7 +2261,7 @@ bool Disk2InterfaceCard::LoadSnapshot(class YamlLoadHelper& yamlLoadHelper, UINT
 	LoadSnapshotDriveUnit(yamlLoadHelper, DRIVE_1, version);
 	LoadSnapshotDriveUnit(yamlLoadHelper, DRIVE_2, version);
 
-	FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
+	GetFrame().FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
 
 	return true;
 }

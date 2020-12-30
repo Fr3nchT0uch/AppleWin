@@ -29,8 +29,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "StdAfx.h"
 
 #include "Pravets.h"
-#include "AppleWin.h"
-#include "Frame.h"
+#include "Core.h"
+#include "Interface.h"
 #include "Keyboard.h"
 #include "Tape.h"
 
@@ -44,6 +44,6 @@ void PravetsReset(void)
 	{
 		P8CAPS_ON = false; 
 		TapeWrite(0, 0, 0, 0 ,0);
-		FrameRefreshStatus(DRAW_LEDS);
+		GetFrame().FrameRefreshStatus(DRAW_LEDS);
 	}
 }

@@ -32,7 +32,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include "Debug.h"
 
-#include "../AppleWin.h"
+#include "../Core.h"
 
 
 #define DEBUG_COLOR_CONSOLE 0
@@ -571,8 +571,8 @@ Update_t CmdHelpSpecific (int nArgs)
 	int iArg;
 	char sText[ CONSOLE_WIDTH * 2 ];
 	char sTemp[ CONSOLE_WIDTH * 2 ];
-	ZeroMemory( sText, CONSOLE_WIDTH*2 );
-	ZeroMemory( sTemp, CONSOLE_WIDTH*2 );
+	memset( sText, 0, CONSOLE_WIDTH*2 );
+	memset( sTemp, 0, CONSOLE_WIDTH*2 );
 
 	if (! nArgs)
 	{

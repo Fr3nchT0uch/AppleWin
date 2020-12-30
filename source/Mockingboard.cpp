@@ -80,7 +80,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "Mockingboard.h"
 #include "SaveState_Structs_v1.h"
 
-#include "AppleWin.h"
+#include "Core.h"
 #include "CardManager.h"
 #include "CPU.h"
 #include "Log.h"
@@ -1649,6 +1649,9 @@ void MB_Destroy()
 
 	for (int id=0; id<kNumSyncEvents; id++)
 	{
+		if (g_syncEvent[id] && g_syncEvent[id]->m_active)
+			g_SynchronousEventMgr.Remove(id);
+
 		delete g_syncEvent[id];
 		g_syncEvent[id] = NULL;
 	}
@@ -1826,8 +1829,7 @@ static BYTE __stdcall MB_Write(WORD PC, WORD nAddr, BYTE bWrite, BYTE nValue, UL
 		if(nMB != 0)	// Slot4 only
 			return 0;
 
-		int CS;
-
+		int CS = 0;
 		if (g_phasorMode == PH_Mockingboard)
 			CS = ( ( nAddr & 0x80 ) >> 7 ) + 1;							// 1 or 2
 		else if (g_phasorMode == PH_Phasor)

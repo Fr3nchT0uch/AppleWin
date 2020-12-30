@@ -34,16 +34,18 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "Debug.h"
 #include "DebugDefs.h"
 
-#include "../AppleWin.h"
+#include "../Windows/AppleWin.h"
+#include "../Core.h"
+#include "../Interface.h"
 #include "../CardManager.h"
 #include "../CPU.h"
 #include "../Disk.h"
-#include "../Frame.h"
 #include "../Keyboard.h"
 #include "../Memory.h"
 #include "../NTSC.h"
 #include "../SoundCore.h"	// SoundCore_SetFade()
-#include "../Video.h"
+#include "../Windows/WinVideo.h"
+#include "../Windows/WinFrame.h"
 
 //	#define DEBUG_COMMAND_HELP  1
 //	#define DEBUG_ASM_HASH 1
@@ -565,77 +567,46 @@ Update_t CmdBookmark (int nArgs)
 //===========================================================================
 Update_t CmdBookmarkAdd (int nArgs )
 {
-	// BMA [address]
-	// BMA # address
+	// BMA address
+	// BMA # address	; where # is [0...9]
 	if (! nArgs)
 	{
-		return CmdZeroPageList( 0 );
+		return CmdBookmarkList( 0 );
 	}
+
+	int iBookmark = 0;
 
 	int iArg = 1;
-	int iBookmark = NO_6502_TARGET;
-
 	if (nArgs > 1)
 	{
-		iBookmark = g_aArgs[ 1 ].nValue;
+		iBookmark = g_aArgs[ iArg ].nValue;
 		iArg++;
 	}
-
-	bool bAdded = false;
-	for (; iArg <= nArgs; iArg++ )
+	else
 	{
-		WORD nAddress = g_aArgs[ iArg ].nValue;
-
-		if (iBookmark == NO_6502_TARGET)
-		{
-			iBookmark = 0;
-			while ((iBookmark < MAX_BOOKMARKS) && (g_aBookmarks[iBookmark].bSet))
-			{
-				iBookmark++;
-			}
-		}
-
-		if ((iBookmark >= MAX_BOOKMARKS) && !bAdded)
-		{
-			char sText[ CONSOLE_WIDTH ];
-			sprintf( sText, "All bookmarks are currently in use.  (Max: %d)", MAX_BOOKMARKS );
-			ConsoleDisplayPush( sText );
-			return ConsoleUpdate();
-		}
-
-		// 2.9.0.16 Fixed: Replacing an existing bookmark incorrectly increased the total bookmark count.
-		int nOldBookmark = Bookmark_Find( nAddress );
-		if (nOldBookmark)
-		{
-			_Bookmark_Del( nAddress );
-		}
-
-		// 2.9.0.17 Fixed: If all bookmarks were used then setting a new one wouldn't update an existing one to the new address.
-		if (g_aBookmarks[ iBookmark ].bSet)
-		{
-			g_aBookmarks[ iBookmark ].nAddress = nAddress;
-			bAdded = true;
-		}
-		else
-			if (g_nBookmarks < MAX_BOOKMARKS)
-			{
-				bAdded = _Bookmark_Add( iBookmark, nAddress );
-				iBookmark++;
-			}
+		while ((iBookmark < MAX_BOOKMARKS) && g_aBookmarks[iBookmark].bSet)
+			iBookmark++;
 	}
 
+	WORD nAddress = g_aArgs[ iArg ].nValue;
+
+	if (iBookmark >= MAX_BOOKMARKS)
+	{
+		char sText[ CONSOLE_WIDTH ];
+		sprintf( sText, "All bookmarks are currently in use.  (Max: %d)", MAX_BOOKMARKS );
+		ConsoleDisplayPush( sText );
+		return ConsoleUpdate();
+	}
+
+	if (Bookmark_Find( nAddress ))
+		_Bookmark_Del( nAddress );
+
+	bool bAdded = _Bookmark_Add( iBookmark, nAddress );
 	if (!bAdded)
-		goto _Help;
+		return Help_Arg_1( CMD_BOOKMARK_ADD );
 
 	return UPDATE_DISASM | ConsoleUpdate();
-
-_Help:
-	return Help_Arg_1( CMD_BOOKMARK_ADD );
-
 }
-
-
-
 
 //===========================================================================
 Update_t CmdBookmarkClear (int nArgs)
@@ -653,7 +624,7 @@ Update_t CmdBookmarkClear (int nArgs)
 
 		iBookmark = g_aArgs[ iArg ].nValue;
 		if (g_aBookmarks[ iBookmark ].bSet)
-			g_aBookmarks[ iBookmark ].bSet = false;
+			_Bookmark_Del(g_aBookmarks[ iBookmark ].nAddress);
 	}
 
 	return UPDATE_DISASM;
@@ -782,8 +753,8 @@ Update_t CmdBenchmarkStop (int nArgs)
 	g_bBenchmarking = false;
 	DebugEnd();
 	
-	FrameRefreshStatus(DRAW_TITLE);
-	VideoRedrawScreen();
+	GetFrame().FrameRefreshStatus(DRAW_TITLE);
+	GetFrame().VideoRedrawScreen();
 	DWORD currtime = GetTickCount();
 	while ((extbench = GetTickCount()) != currtime)
 		; // intentional busy-waiting
@@ -1992,7 +1963,7 @@ static Update_t CmdGo (int nArgs, const bool bFullSpeed)
 	g_bGoCmd_ReinitFlag = true;
 
 	g_nAppMode = MODE_STEPPING;
-	FrameRefreshStatus(DRAW_TITLE);
+	GetFrame().FrameRefreshStatus(DRAW_TITLE);
 
 	SoundCore_SetFade(FADE_IN);
 
@@ -2061,7 +2032,7 @@ Update_t CmdTrace (int nArgs)
 	g_nDebugStepStart = regs.pc;
 	g_nDebugStepUntil = -1;
 	g_nAppMode = MODE_STEPPING;
-	FrameRefreshStatus(DRAW_TITLE);
+	GetFrame().FrameRefreshStatus(DRAW_TITLE);
 	DebugContinueStepping(true);
 
 	return UPDATE_ALL; // TODO: Verify // 0
@@ -2121,7 +2092,7 @@ Update_t CmdTraceLine (int nArgs)
 	g_nDebugStepUntil = -1;
 
 	g_nAppMode = MODE_STEPPING;
-	FrameRefreshStatus(DRAW_TITLE);
+	GetFrame().FrameRefreshStatus(DRAW_TITLE);
 	DebugContinueStepping(true);
 
 	return UPDATE_ALL; // TODO: Verify // 0
@@ -2255,7 +2226,7 @@ void _CmdColorGet( const int iScheme, const int iColor )
 	{
 		TCHAR sText[ CONSOLE_WIDTH ];
 		wsprintf( sText, "Color: %d\nOut of range!", iColor );
-		MessageBox( g_hFrameWindow, sText, TEXT("ERROR"), MB_OK );
+		MessageBox(GetFrame().g_hFrameWindow, sText, TEXT("ERROR"), MB_OK );
 	}
 }
 
@@ -3070,7 +3041,7 @@ void DisasmCalcTopFromCurAddress( bool bUpdateTop )
 				"\tLen: %04X\n"
 				"\tMissed: %04X"),
 				g_nDisasmCurAddress - nLen, nLen, g_nDisasmCurAddress );
-			MessageBox( g_hFrameWindow, sText, "ERROR", MB_OK );
+			MessageBox( GetFrame().g_hFrameWindow, sText, "ERROR", MB_OK );
 #endif
 	}
 }
@@ -3801,7 +3772,7 @@ Update_t CmdDisk ( int nArgs)
 			return HelpLastCommand();
 
 		diskCard.EjectDisk( iDrive );
-		FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
+		GetFrame().FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
 	}
 	else
 	if (iParam == PARAM_DISK_PROTECT)
@@ -3815,7 +3786,7 @@ Update_t CmdDisk ( int nArgs)
 			bProtect = g_aArgs[ 3 ].nValue ? true : false;
 
 		diskCard.SetProtect( iDrive, bProtect );
-		FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
+		GetFrame().FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
 	}
 	else
 	{
@@ -3826,7 +3797,7 @@ Update_t CmdDisk ( int nArgs)
 
 		// DISK # "Diskname"
 		diskCard.InsertDisk( iDrive, pDiskName, IMAGE_FORCE_WRITE_PROTECTED, IMAGE_DONT_CREATE );
-		FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
+		GetFrame().FrameRefreshStatus(DRAW_LEDS | DRAW_BUTTON_DRIVES);
 	}
 
 	return UPDATE_CONSOLE_DISPLAY;
@@ -4970,7 +4941,7 @@ size_t Util_GetTextScreen ( char* &pText_ )
 	g_nTextScreen = 0;
 	memset( pBeg, 0, sizeof( g_aTextScreen ) );
 
-	unsigned int uBank2 = VideoGetSWPAGE2() ? 1 : 0;
+	unsigned int uBank2 = GetVideo().VideoGetSWPAGE2() ? 1 : 0;
 	LPBYTE g_pTextBank1  = MemGetAuxPtr (0x400 << uBank2);
 	LPBYTE g_pTextBank0  = MemGetMainPtr(0x400 << uBank2);
 
@@ -4983,7 +4954,7 @@ size_t Util_GetTextScreen ( char* &pText_ )
 		{
 			char c; // TODO: FormatCharTxtCtrl() ?
 
-			if ( VideoGetSW80COL() )
+			if ( GetVideo().VideoGetSW80COL() )
 			{ // AUX
 				c = g_pTextBank1[ nAddressStart ] & 0x7F;
 				c = RemapChar(c);
@@ -5460,7 +5431,7 @@ Update_t CmdNTSC (int nArgs)
 			}
 	};
 
-	bool bColorTV = (g_eVideoType == VT_COLOR_TV);
+	bool bColorTV = (GetVideo().GetVideoType() == VT_COLOR_TV);
 
 	uint32_t* pChromaTable = NTSC_VideoGetChromaTable( false, bColorTV );
 	char aStatusText[ CONSOLE_WIDTH*2 ] = "Loaded";
@@ -5495,7 +5466,7 @@ Update_t CmdNTSC (int nArgs)
 
 					// Write BMP header
 					WinBmpHeader_t bmp, *pBmp = &bmp;
-					Video_SetBitmapHeader( pBmp, 64, 256, 32 );
+					GetVideo().Video_SetBitmapHeader( pBmp, 64, 256, 32 );
 					fwrite( pBmp, sizeof( WinBmpHeader_t ), 1, pFile );
 				}
 				else
@@ -5665,7 +5636,7 @@ int CmdTextSave (int nArgs)
 		g_sMemoryLoadSaveFileName = g_aArgs[ 1 ].sArg;
 	else
 	{
-		if( VideoGetSW80COL() )
+		if( GetVideo().VideoGetSW80COL() )
 			g_sMemoryLoadSaveFileName = "AppleWin_Text80.txt";
 		else
 			g_sMemoryLoadSaveFileName = "AppleWin_Text40.txt";
@@ -6914,8 +6885,8 @@ Update_t _ViewOutput( ViewVideoPage_t iPage, int bVideoModeFlags )
 	switch( iPage ) 
 	{
 		case VIEW_PAGE_X:
-			bVideoModeFlags |= !VideoGetSWPAGE2() ? 0 : VF_PAGE2;
-			bVideoModeFlags |= !VideoGetSWMIXED() ? 0 : VF_MIXED;
+			bVideoModeFlags |= !GetVideo().VideoGetSWPAGE2() ? 0 : VF_PAGE2;
+			bVideoModeFlags |= !GetVideo().VideoGetSWMIXED() ? 0 : VF_MIXED;
 			break; // Page Current & current MIXED state
 		case VIEW_PAGE_1: bVideoModeFlags |= 0; break; // Page 1
 		case VIEW_PAGE_2: bVideoModeFlags |= VF_PAGE2; break; // Page 2
@@ -6925,7 +6896,7 @@ Update_t _ViewOutput( ViewVideoPage_t iPage, int bVideoModeFlags )
 	}
 
 	DebugVideoMode::Instance().Set(bVideoModeFlags);
-	VideoRefreshScreen( bVideoModeFlags, true );
+	GetVideo().VideoRefreshScreen( bVideoModeFlags, true );
 	return UPDATE_NOTHING; // intentional
 }
 
@@ -7476,9 +7447,9 @@ Update_t CmdWindowViewData (int nArgs)
 //===========================================================================
 Update_t CmdWindowViewOutput (int nArgs)
 {
-	VideoRedrawScreen();
+	GetFrame().VideoRedrawScreen();
 
-	DebugVideoMode::Instance().Set(g_uVideoMode);
+	DebugVideoMode::Instance().Set( GetVideo().GetVideoMode() );
 
 	return UPDATE_NOTHING; // intentional
 }
@@ -8577,7 +8548,7 @@ void DebugBegin ()
 	GetDebuggerMemDC();
 
 	g_nAppMode = MODE_DEBUG;
-	FrameRefreshStatus(DRAW_TITLE);
+	GetFrame().FrameRefreshStatus(DRAW_TITLE);
 
 	if (GetMainCpu() == CPU_6502)
 	{
@@ -8764,7 +8735,7 @@ void DebugContinueStepping(const bool bCallerWillUpdateDisplay/*=false*/)
 		SoundCore_SetFade(FADE_OUT);	// NB. Call when MODE_STEPPING (not MODE_DEBUG) - see function
 
 		g_nAppMode = MODE_DEBUG;
-		FrameRefreshStatus(DRAW_TITLE);
+		GetFrame().FrameRefreshStatus(DRAW_TITLE);
 // BUG: PageUp, Trace - doesn't center cursor
 
 		g_nDisasmCurAddress = regs.pc;
@@ -8860,7 +8831,7 @@ void DebugInitialize ()
 
 	GetConsoleFontDC(); // Load font
 
-	ZeroMemory( g_aConsoleDisplay, sizeof( g_aConsoleDisplay ) ); // CONSOLE_WIDTH * CONSOLE_HEIGHT );
+	memset( g_aConsoleDisplay, 0, sizeof( g_aConsoleDisplay ) ); // CONSOLE_WIDTH * CONSOLE_HEIGHT );
 	ConsoleInputReset();
 
 	for( int iWindow = 0; iWindow < NUM_WINDOWS; iWindow++ )
@@ -8882,9 +8853,9 @@ void DebugInitialize ()
 	WindowUpdateConsoleDisplayedSize();
 
 	// CLEAR THE BREAKPOINT AND WATCH TABLES
-	ZeroMemory( g_aBreakpoints     , MAX_BREAKPOINTS       * sizeof(Breakpoint_t));
-	ZeroMemory( g_aWatches         , MAX_WATCHES           * sizeof(Watches_t) );
-	ZeroMemory( g_aZeroPagePointers, MAX_ZEROPAGE_POINTERS * sizeof(ZeroPagePointers_t));
+	memset( g_aBreakpoints     , 0, MAX_BREAKPOINTS       * sizeof(Breakpoint_t));
+	memset( g_aWatches         , 0, MAX_WATCHES           * sizeof(Watches_t) );
+	memset( g_aZeroPagePointers, 0, MAX_ZEROPAGE_POINTERS * sizeof(ZeroPagePointers_t));
 
 	// Load Main, Applesoft, and User Symbols
 	extern bool g_bSymbolsDisplayMissingFile;
@@ -9092,7 +9063,7 @@ void DebuggerInputConsoleChar( TCHAR ch )
 		if (!IsClipboardFormatAvailable(CF_TEXT)) 
 			return;
 
-		if (!OpenClipboard( g_hFrameWindow )) 
+		if (!OpenClipboard(GetFrame().g_hFrameWindow ))
 			return;
 
 		HGLOBAL hClipboard;
@@ -9612,7 +9583,7 @@ void DebugDisplay( BOOL bInitDisasm/*=FALSE*/ )
 	{
 		uint32_t mode = 0;
 		DebugVideoMode::Instance().Get(&mode);
-		VideoRefreshScreen(mode, true);
+		GetVideo().VideoRefreshScreen(mode, true);
 		return;
 	}
 

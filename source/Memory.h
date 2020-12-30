@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Common.h"
+#include "Card.h"
 
 // Memory Flag
 #define  MF_80STORE    0x00000001
@@ -99,6 +100,8 @@ void    NoSlotClockLoadSnapshot(YamlLoadHelper& yamlLoadHelper);
 BYTE __stdcall IO_Null(WORD programcounter, WORD address, BYTE write, BYTE value, ULONG nCycles);
 
 BYTE __stdcall MemSetPaging(WORD pc, WORD addr, BYTE bWrite, BYTE d, ULONG nExecutedCycles);
+
+BYTE __stdcall IO_F8xx(WORD programcounter, WORD address, BYTE write, BYTE value, ULONG nCycles);
 
 enum SS_CARDTYPE;
 void	SetExpansionMemType(const SS_CARDTYPE type);

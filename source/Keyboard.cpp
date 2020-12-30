@@ -29,12 +29,14 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "StdAfx.h"
 
 #include "Keyboard.h"
-#include "AppleWin.h"
-#include "Frame.h"
+#include "Windows/AppleWin.h"
+#include "Core.h"
+#include "Interface.h"
+#include "Utilities.h"
 #include "Pravets.h"
 #include "Tape.h"
 #include "YamlHelper.h"
-#include "Video.h" // Needed by TK3000 //e, to refresh the frame at each |Mode| change
+#include "Windows/WinVideo.h" // Needed by TK3000 //e, to refresh the frame at each |Mode| change
 #include "Log.h"
 
 static BYTE asciicode[2][10] = {
@@ -124,13 +126,13 @@ void KeybQueueKeypress (WPARAM key, Keystroke_e bASCII)
 {
 	if (bASCII == ASCII)	// WM_CHAR
 	{
-		if (g_bFreshReset && key == VK_CANCEL) // OLD HACK: 0x03
+		if (GetFrame().g_bFreshReset && key == VK_CANCEL) // OLD HACK: 0x03
 		{
-			g_bFreshReset = false;
+			GetFrame().g_bFreshReset = false;
 			return; // Swallow spurious CTRL-C caused by CTRL-BREAK
 		}
 
-		g_bFreshReset = false;
+		GetFrame().g_bFreshReset = false;
 		if ((key > 0x7F) && !g_bTK3KModeKey) // When in TK3000 mode, we have special keys which need remapping
 			return;
 
@@ -283,7 +285,7 @@ void KeybQueueKeypress (WPARAM key, Keystroke_e bASCII)
 		// Note: VK_CANCEL is Control-Break
 		if ((key == VK_CANCEL) && (GetKeyState(VK_CONTROL) < 0))
 		{
-			g_bFreshReset = true;
+			GetFrame().g_bFreshReset = true;
 			CtrlReset();
 			return;
 		}
@@ -300,8 +302,8 @@ void KeybQueueKeypress (WPARAM key, Keystroke_e bASCII)
 			if (g_Apple2Type == A2TYPE_TK30002E)
 			{
 				g_bTK3KModeKey = (GetKeyState(VK_SCROLL) & 1) ? true : false;	// Sync with the Scroll Lock status
-				FrameRefreshStatus(DRAW_LEDS);	// TODO: Implement |Mode| LED in the UI; make it appear only when in TK3000 mode
-				VideoRedrawScreen();	// TODO: Still need to implement page mode switching and 'whatnot'
+				GetFrame().FrameRefreshStatus(DRAW_LEDS);	// TODO: Implement |Mode| LED in the UI; make it appear only when in TK3000 mode
+				GetFrame().VideoRedrawScreen();	// TODO: Still need to implement page mode switching and 'whatnot'
 			}
 			return;
 		}
@@ -330,7 +332,7 @@ void KeybQueueKeypress (WPARAM key, Keystroke_e bASCII)
 						newKey -= 'A' - 1;		// convert to control-key
 				}
 
-				PostMessage(g_hFrameWindow, WM_CHAR, newKey, 0);
+				PostMessage(GetFrame().g_hFrameWindow, WM_CHAR, newKey, 0);
 			}
 
 			return;
@@ -376,7 +378,7 @@ static void ClipboardInit()
 	if (!IsClipboardFormatAvailable(CF_TEXT))
 		return;
 	
-	if (!OpenClipboard(g_hFrameWindow))
+	if (!OpenClipboard(GetFrame().g_hFrameWindow))
 		return;
 	
 	hglb = GetClipboardData(CF_TEXT);
@@ -536,7 +538,7 @@ void KeybToggleCapsLock ()
 	if (!IS_APPLE2)
 	{
 		g_bCapsLock = (GetKeyState(VK_CAPITAL) & 1);
-		FrameRefreshStatus(DRAW_LEDS);
+		GetFrame().FrameRefreshStatus(DRAW_LEDS);
 	}
 }
 
@@ -545,7 +547,7 @@ void KeybToggleP8ACapsLock ()
 {
 	_ASSERT(g_Apple2Type == A2TYPE_PRAVETS8A);
 	P8CAPS_ON = !P8CAPS_ON;
-	FrameRefreshStatus(DRAW_LEDS);
+	GetFrame().FrameRefreshStatus(DRAW_LEDS);
 	// g_bP8CapsLock= g_bP8CapsLock?false:true; //The same as the upper, but slower
 }
 

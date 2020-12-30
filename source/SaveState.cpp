@@ -31,12 +31,11 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "SaveState.h"
 #include "YamlHelper.h"
 
-#include "AppleWin.h"
+#include "Interface.h"
 #include "CardManager.h"
 #include "CPU.h"
 #include "Debug.h"
 #include "Disk.h"
-#include "Frame.h"
 #include "Joystick.h"
 #include "Keyboard.h"
 #include "LanguageCard.h"
@@ -48,7 +47,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "SerialComms.h"
 #include "Speaker.h"
 #include "Speech.h"
-#include "Video.h"
 #include "z80emu.h"
 
 #include "Configuration/Config.h"
@@ -285,12 +283,12 @@ static void ParseUnitApple2(YamlLoadHelper& yamlLoadHelper, UINT version)
 	JoyLoadSnapshot(yamlLoadHelper);
 	KeybLoadSnapshot(yamlLoadHelper, version);
 	SpkrLoadSnapshot(yamlLoadHelper);
-	VideoLoadSnapshot(yamlLoadHelper, version);
+	GetVideo().VideoLoadSnapshot(yamlLoadHelper, version);
 	MemLoadSnapshot(yamlLoadHelper, version);
 
 	// g_Apple2Type may've changed: so redraw frame (title, buttons, leds, etc)
-	VideoReinitialize();	// g_CharsetType changed
-	FrameUpdateApple2Type();	// Calls VideoRedrawScreen() before the aux mem has been loaded (so if DHGR is enabled, then aux mem will be zeros at this stage)
+	GetVideo().VideoReinitialize();	// g_CharsetType changed
+	GetFrame().FrameUpdateApple2Type();	// Calls VideoRedrawScreen() before the aux mem has been loaded (so if DHGR is enabled, then aux mem will be zeros at this stage)
 }
 
 //---
@@ -492,8 +490,8 @@ static void Snapshot_LoadState_v2(void)
 		HD_SetEnabled(false);
 
 		KeybReset();
-		VideoResetState();
-		SetVideoRefreshRate(VR_60HZ);		// Default to 60Hz as older save-states won't contain refresh rate
+		GetVideo().VideoResetState();
+		GetVideo().SetVideoRefreshRate(VR_60HZ);	// Default to 60Hz as older save-states won't contain refresh rate
 		MB_InitializeForLoadingSnapshot();	// GH#609
 #ifdef USE_SPEECH_API
 		g_Speech.Reset();
@@ -509,14 +507,14 @@ static void Snapshot_LoadState_v2(void)
 		}
 
 		MB_SetCumulativeCycles();
-		SetLoadedSaveStateFlag(true);
+		GetFrame().SetLoadedSaveStateFlag(true);
 
 		// NB. The following disparity should be resolved:
 		// . A change in h/w via the Configuration property sheets results in a the VM completely restarting (via WM_USER_RESTART)
 		// . A change in h/w via loading a save-state avoids this VM restart
 		// The latter is the desired approach (as the former needs a "power-on" / F2 to start things again)
 
-		sg_PropertySheet.ApplyNewConfig(m_ConfigNew, ConfigOld);	// Mainly just saves (some) new state to Registry
+		GetPropertySheet().ApplyNewConfig(m_ConfigNew, ConfigOld);	// Mainly just saves (some) new state to Registry
 
 		MemInitializeROM();
 		MemInitializeCustomROM();
@@ -532,13 +530,13 @@ static void Snapshot_LoadState_v2(void)
 	}
 	catch(std::string szMessage)
 	{
-		MessageBox(	g_hFrameWindow,
+		MessageBox(	GetFrame().g_hFrameWindow,
 					szMessage.c_str(),
 					TEXT("Load State"),
 					MB_ICONEXCLAMATION | MB_SETFOREGROUND);
 
 		if (restart)
-			PostMessage(g_hFrameWindow, WM_USER_RESTART, 0, 0);		// Power-cycle VM (undoing all the new state just loaded)
+			PostMessage(GetFrame().g_hFrameWindow, WM_USER_RESTART, 0, 0);		// Power-cycle VM (undoing all the new state just loaded)
 	}
 
 	SetCursor(oldcursor);
@@ -551,7 +549,7 @@ void Snapshot_LoadState()
 	const size_t pos = g_strSaveStatePathname.size() - ext_aws.size();
 	if (g_strSaveStatePathname.find(ext_aws, pos) != std::string::npos)	// find ".aws" at end of pathname
 	{
-		MessageBox(	g_hFrameWindow,
+		MessageBox(	GetFrame().g_hFrameWindow,
 					"Save-state v1 no longer supported.\n"
 					"Please load using AppleWin 1.27, and re-save as a v2 state file.",
 					TEXT("Load State"),
@@ -585,7 +583,7 @@ void Snapshot_SaveState(void)
 			JoySaveSnapshot(yamlSaveHelper);
 			KeybSaveSnapshot(yamlSaveHelper);
 			SpkrSaveSnapshot(yamlSaveHelper);
-			VideoSaveSnapshot(yamlSaveHelper);
+			GetVideo().VideoSaveSnapshot(yamlSaveHelper);
 			MemSaveSnapshot(yamlSaveHelper);
 		}
 
@@ -648,7 +646,7 @@ void Snapshot_SaveState(void)
 	}
 	catch(std::string szMessage)
 	{
-		MessageBox(	g_hFrameWindow,
+		MessageBox(	GetFrame().g_hFrameWindow,
 					szMessage.c_str(),
 					TEXT("Save State"),
 					MB_ICONEXCLAMATION | MB_SETFOREGROUND);

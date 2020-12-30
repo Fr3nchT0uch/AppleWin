@@ -29,12 +29,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "StdAfx.h"
 
 #include "Harddisk.h"
-#include "AppleWin.h"
+#include "Core.h"
+#include "Interface.h"
 #include "CardManager.h"
 #include "CPU.h"
 #include "DiskImage.h"	// ImageError_e, Disk_Status_e
 #include "DiskImageHelper.h"
-#include "Frame.h"
 #include "Memory.h"
 #include "Registry.h"
 #include "SaveState.h"
@@ -125,7 +125,7 @@ struct HDD
 	void clear()
 	{
 		// This is not a POD (there is a std::string)
-		// ZeroMemory does not work
+		// memset(0) does not work
 		imagename.clear();
 		fullname.clear();
 		strFilenameInZip.clear();
@@ -136,7 +136,7 @@ struct HDD
 		hd_diskblock = 0;
 		hd_buf_ptr = 0;
 		hd_imageloaded = false;
-		ZeroMemory(hd_buf, sizeof(hd_buf));
+		memset(hd_buf, 0, sizeof(hd_buf));
 #if HD_LED
 		hd_status_next = DISK_STATUS_OFF;
 		hd_status_prev = DISK_STATUS_OFF;
@@ -417,7 +417,7 @@ BOOL HD_Insert(const int iDrive, const std::string & pszImageFilename)
 		if (!strcmp(pszOtherPathname.c_str(), szCurrentPathname))
 		{
 			HD_Unplug(!iDrive);
-			FrameRefreshStatus(DRAW_LEDS);
+			GetFrame().FrameRefreshStatus(DRAW_LEDS);
 		}
 	}
 
@@ -460,13 +460,11 @@ static bool HD_SelectImage(const int drive, LPCSTR pszFilename)
 	RegLoadString(TEXT(REG_PREFS), TEXT(REGVALUE_PREF_HDV_START_DIR), 1, directory, MAX_PATH, TEXT(""));
 	StringCbPrintf(title, 40, TEXT("Select HDV Image For HDD %d"), drive + 1);
 
-	_ASSERT(sizeof(OPENFILENAME) == sizeof(OPENFILENAME_NT4));	// Required for Win98/ME support (selected by _WIN32_WINNT=0x0400 in stdafx.h)
-
 	OPENFILENAME ofn;
-	ZeroMemory(&ofn,sizeof(OPENFILENAME));
+	memset(&ofn, 0, sizeof(OPENFILENAME));
 	ofn.lStructSize     = sizeof(OPENFILENAME);
-	ofn.hwndOwner       = g_hFrameWindow;
-	ofn.hInstance       = g_hInstance;
+	ofn.hwndOwner       = GetFrame().g_hFrameWindow;
+	ofn.hInstance       = GetFrame().g_hInstance;
 	ofn.lpstrFilter     = TEXT("Hard Disk Images (*.hdv,*.po,*.2mg,*.2img,*.gz,*.zip)\0*.hdv;*.po;*.2mg;*.2img;*.gz;*.zip\0")
 						  TEXT("All Files\0*.*\0");
 	ofn.lpstrFile       = filename;
@@ -584,7 +582,7 @@ static BYTE __stdcall HD_IO_EMUL(WORD pc, WORD addr, BYTE bWrite, BYTE d, ULONG 
 
 								if (bAppendBlocks)
 								{
-									ZeroMemory(pHDD->hd_buf, HD_BLOCK_SIZE);
+									memset(pHDD->hd_buf, 0, HD_BLOCK_SIZE);
 
 									// Inefficient (especially for gzip/zip files!)
 									UINT uBlock = ImageGetImageSize(pHDD->imagehandle) / HD_BLOCK_SIZE;
@@ -597,7 +595,7 @@ static BYTE __stdcall HD_IO_EMUL(WORD pc, WORD addr, BYTE bWrite, BYTE d, ULONG 
 									}
 								}
 
-								MoveMemory(pHDD->hd_buf, mem+pHDD->hd_memblock, HD_BLOCK_SIZE);
+								memmove(pHDD->hd_buf, mem+pHDD->hd_memblock, HD_BLOCK_SIZE);
 
 								if (bRes)
 									bRes = ImageWriteBlock(pHDD->imagehandle, pHDD->hd_diskblock, pHDD->hd_buf);
@@ -713,7 +711,7 @@ static BYTE __stdcall HD_IO_EMUL(WORD pc, WORD addr, BYTE bWrite, BYTE d, ULONG 
 	if( pHDD->hd_status_prev != pHDD->hd_status_next ) // Update LEDs if state changes
 	{
 		pHDD->hd_status_prev = pHDD->hd_status_next;
-		FrameRefreshStatus(DRAW_LEDS);
+		GetFrame().FrameRefreshStatus(DRAW_LEDS);
 	}
 #endif
 
@@ -742,7 +740,7 @@ bool HD_ImageSwap(void)
 	HD_SaveLastDiskImage(HARDDISK_1);
 	HD_SaveLastDiskImage(HARDDISK_2);
 
-	FrameRefreshStatus(DRAW_LEDS, false);
+	GetFrame().FrameRefreshStatus(DRAW_LEDS, false);
 
 	return true;
 }
@@ -902,7 +900,7 @@ bool HD_LoadSnapshot(YamlLoadHelper& yamlLoadHelper, UINT slot, UINT version, co
 
 	HD_SetEnabled(true);
 
-	FrameRefreshStatus(DRAW_LEDS);
+	GetFrame().FrameRefreshStatus(DRAW_LEDS);
 
 	return true;
 }

@@ -29,13 +29,12 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "StdAfx.h"
 
 #include "Speaker.h"
-#include "AppleWin.h"
+#include "Core.h"
 #include "CPU.h"
-#include "Frame.h"
+#include "Interface.h"
 #include "Log.h"
 #include "Memory.h"
 #include "SoundCore.h"
-#include "Video.h"	// VideoRedrawScreen()
 #include "YamlHelper.h"
 #include "Riff.h"
 
@@ -98,13 +97,13 @@ static void    Spkr_DSUninit();
 static void DisplayBenchmarkResults ()
 {
   DWORD totaltime = GetTickCount()-extbench;
-  VideoRedrawScreen();
+  GetFrame().VideoRedrawScreen();
   TCHAR buffer[64];
   wsprintf(buffer,
            TEXT("This benchmark took %u.%02u seconds."),
            (unsigned)(totaltime / 1000),
            (unsigned)((totaltime / 10) % 100));
-  MessageBox(g_hFrameWindow,
+  MessageBox(GetFrame().g_hFrameWindow,
              buffer,
              TEXT("Benchmark Results"),
              MB_ICONINFORMATION | MB_SETFOREGROUND);
